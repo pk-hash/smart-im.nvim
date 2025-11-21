@@ -1,36 +1,49 @@
 local M = {}
 
+local OS_COMMANDS = {
+	Darwin = {
+		{ cmd = "im-select", get = "im-select", set = "im-select %s" },
+		{ cmd = "macism", get = "macism", set = "macism %s" },
+	},
+	Linux = {
+		{ cmd = "ibus", get = "ibus engine", set = "ibus engine %s" },
+		{ cmd = "fcitx-remote", get = "fcitx-remote -n", set = "fcitx-remote -s %s" },
+		{ cmd = "fcitx5-remote", get = "fcitx5-remote -n", set = "fcitx5-remote -s %s" },
+	},
+	Windows = {
+		{ cmd = "im-select.exe", get = "im-select.exe", set = "im-select.exe %s" },
+	},
+}
+
 -- Detect OS and set appropriate commands
 function M.detect_commands()
 	local uname = vim.loop.os_uname().sysname
-
+	
+	-- Normalize OS name
+	local os_key
 	if uname == "Darwin" then
-		return {
-			get = "im-select",
-			set = "im-select %s",
-		}
+		os_key = "Darwin"
 	elseif uname == "Linux" then
-		if vim.fn.executable("ibus") == 1 then
+		os_key = "Linux"
+	elseif uname:match("Windows") or uname:match("MINGW") or uname:match("MSYS") then
+		os_key = "Windows"
+	else
+		return nil
+	end
+
+	local commands = OS_COMMANDS[os_key]
+	if not commands then
+		return nil
+	end
+
+	-- Find first available command
+	for _, entry in ipairs(commands) do
+		if vim.fn.executable(entry.cmd) == 1 then
 			return {
-				get = "ibus engine",
-				set = "ibus engine %s",
-			}
-		elseif vim.fn.executable("fcitx-remote") == 1 then
-			return {
-				get = "fcitx-remote -n",
-				set = "fcitx-remote -s %s",
-			}
-		elseif vim.fn.executable("fcitx5-remote") == 1 then
-			return {
-				get = "fcitx5-remote -n",
-				set = "fcitx5-remote -s %s",
+				get = entry.get,
+				set = entry.set,
 			}
 		end
-	elseif uname:match("Windows") then
-		return {
-			get = "im-select.exe",
-			set = "im-select.exe %s",
-		}
 	end
 
 	return nil
