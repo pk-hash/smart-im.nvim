@@ -2,23 +2,23 @@ local M = {}
 
 local OS_COMMANDS = {
 	Darwin = {
-		{ cmd = "im-select", get = "im-select", set = "im-select %s" },
-		{ cmd = "macism", get = "macism", set = "macism %s" },
+		{ "im-select" },
+		{ "macism" },
 	},
 	Linux = {
-		{ cmd = "ibus", get = "ibus engine", set = "ibus engine %s" },
-		{ cmd = "fcitx-remote", get = "fcitx-remote -n", set = "fcitx-remote -s %s" },
-		{ cmd = "fcitx5-remote", get = "fcitx5-remote -n", set = "fcitx5-remote -s %s" },
+		{ "ibus", args = { get = "engine", set = "engine %s" } },
+		{ "fcitx-remote", args = { get = "-n", set = "-s %s" } },
+		{ "fcitx5-remote", args = { get = "-n", set = "-s %s" } },
 	},
 	Windows = {
-		{ cmd = "im-select.exe", get = "im-select.exe", set = "im-select.exe %s" },
+		{ "im-select.exe" },
 	},
 }
 
 -- Detect OS and set appropriate commands
 function M.detect_commands()
 	local uname = vim.loop.os_uname().sysname
-	
+
 	-- Normalize OS name
 	local os_key
 	if uname == "Darwin" then
@@ -38,11 +38,22 @@ function M.detect_commands()
 
 	-- Find first available command
 	for _, entry in ipairs(commands) do
-		if vim.fn.executable(entry.cmd) == 1 then
-			return {
-				get = entry.get,
-				set = entry.set,
-			}
+		local cmd = entry[1]
+		if vim.fn.executable(cmd) == 1 then
+			local args = entry.args
+			if args then
+				-- Linux-style with different get/set syntax
+				return {
+					get = cmd .. " " .. args.get,
+					set = cmd .. " " .. args.set,
+				}
+			else
+				-- Simple style (macOS/Windows): command accepts argument directly
+				return {
+					get = cmd,
+					set = cmd .. " %s",
+				}
+			end
 		end
 	end
 
