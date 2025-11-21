@@ -31,8 +31,6 @@ describe("smart-im", function()
 
 			local config = require("smart-im.config")
 
-			-- BUG: options.get_im_cmd should be "im-select" but is nil
-			-- because tbl_deep_extend overwrites it after detection
 			assert.is_not_nil(config.options.get_im_cmd, "get_im_cmd should not be nil")
 			assert.is_not_nil(config.options.set_im_cmd, "set_im_cmd should not be nil")
 			assert.equals("im-select", config.options.get_im_cmd, "Should have auto-detected get command")

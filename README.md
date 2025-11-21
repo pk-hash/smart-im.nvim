@@ -93,6 +93,12 @@ require("smart-im").setup({
   -- Filetypes to save IM for (empty = all filetypes)
   save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
   
+  -- Events that trigger IM restore
+  restore_events = { "InsertEnter" },
+  
+  -- Events that trigger IM remember and switch to default
+  remember_events = { "InsertLeave", "CmdlineLeave" },
+  
   -- Custom commands (auto-detected if nil)
   get_im_cmd = nil, -- e.g., "im-select" on macOS
   set_im_cmd = nil, -- e.g., "im-select %s" on macOS

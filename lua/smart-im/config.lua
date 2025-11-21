@@ -7,6 +7,8 @@ M.defaults = {
 	save_im_for_filetypes = {},
 	get_im_cmd = nil,
 	set_im_cmd = nil,
+	restore_events = { "InsertEnter" },
+	remember_events = { "InsertLeave", "CmdlineLeave" },
 }
 
 M.options = {}

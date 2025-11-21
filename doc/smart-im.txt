@@ -77,6 +77,12 @@ Setup the plugin with options: >lua
       -- Filetypes to save IM for (empty = all filetypes)
       save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
       
+      -- Events that trigger IM restore
+      restore_events = { "InsertEnter" },
+      
+      -- Events that trigger IM remember
+      remember_events = { "InsertLeave", "CmdlineLeave" },
+      
       -- Custom commands (auto-detected if nil)
       get_im_cmd = nil, -- e.g., "im-select"
       set_im_cmd = nil, -- e.g., "im-select %s"
@@ -104,6 +110,16 @@ Configuration options:
         Filetypes not in this list will always use default_im.
         Default: {} (all filetypes)
         Example: { "markdown", "text", "org" }
+
+    restore_events          (table)
+        List of autocmd events that trigger IM restoration.
+        Default: { "InsertEnter" }
+        Example: { "InsertEnter", "CmdlineEnter" }
+
+    remember_events         (table)
+        List of autocmd events that trigger IM remember and switch to default.
+        Default: { "InsertLeave", "CmdlineLeave" }
+        Example: { "InsertLeave" } (only insert mode)
 
     get_im_cmd              (string|nil)
         Command to get current input method. Auto-detected if nil.
