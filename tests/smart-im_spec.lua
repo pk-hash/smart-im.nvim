@@ -16,8 +16,13 @@ describe("smart-im", function()
 		it("auto-detects commands and doesn't lose them", function()
 			-- This is the CRITICAL bug test
 			local original_uname = vim.loop.os_uname
+			local original_executable = vim.fn.executable
+
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
+			end
+			vim.fn.executable = function(cmd)
+				return cmd == "im-select" and 1 or 0
 			end
 
 			require("smart-im").setup({
@@ -35,6 +40,7 @@ describe("smart-im", function()
 			assert.equals("im-select %s", config.options.set_im_cmd, "Should have auto-detected set command")
 
 			vim.loop.os_uname = original_uname
+			vim.fn.executable = original_executable
 		end)
 
 		it("preserves user-provided commands over auto-detection", function()
@@ -263,10 +269,14 @@ describe("smart-im", function()
 	describe("utils", function()
 		it("detects macOS commands", function()
 			local utils = require("smart-im.utils")
-			-- Mock os detection
 			local original_uname = vim.loop.os_uname
+			local original_executable = vim.fn.executable
+
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
+			end
+			vim.fn.executable = function(cmd)
+				return cmd == "im-select" and 1 or 0
 			end
 
 			local cmds = utils.detect_commands()
@@ -274,6 +284,7 @@ describe("smart-im", function()
 			assert.equals("im-select %s", cmds.set)
 
 			vim.loop.os_uname = original_uname
+			vim.fn.executable = original_executable
 		end)
 
 		it("detects Linux IBus commands", function()
@@ -299,9 +310,13 @@ describe("smart-im", function()
 		it("detects Windows commands", function()
 			local utils = require("smart-im.utils")
 			local original_uname = vim.loop.os_uname
+			local original_executable = vim.fn.executable
 
 			vim.loop.os_uname = function()
 				return { sysname = "Windows_NT" }
+			end
+			vim.fn.executable = function(cmd)
+				return cmd == "im-select.exe" and 1 or 0
 			end
 
 			local cmds = utils.detect_commands()
@@ -309,6 +324,7 @@ describe("smart-im", function()
 			assert.equals("im-select.exe %s", cmds.set)
 
 			vim.loop.os_uname = original_uname
+			vim.fn.executable = original_executable
 		end)
 	end)
 
