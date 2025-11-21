@@ -68,7 +68,7 @@ end
 function M.execute(cmd)
 	local config = require("smart-im.config")
 	local stderr_redirect = config.options.debug and " 2>&1" or " 2>/dev/null"
-	
+
 	local handle = io.popen(cmd .. stderr_redirect)
 	if not handle then
 		if config.options.debug then
@@ -79,7 +79,12 @@ function M.execute(cmd)
 
 	local result = handle:read("*a")
 	local ok, _, code = handle:close()
-	local success = ok == true or code == 0
+	local success = false
+	if ok == true then
+		success = true
+	elseif code and code == 0 then
+		success = true
+	end
 
 	if not success and config.options.debug then
 		vim.notify("smart-im: Command failed: " .. cmd, vim.log.levels.WARN)

@@ -1,5 +1,6 @@
 ---@module "luassert"
 local stub = require("luassert.stub")
+local DEFAULT_IM = "com.apple.keylayout.ABC"
 
 describe("smart-im", function()
 	before_each(function()
@@ -59,7 +60,7 @@ describe("smart-im", function()
 				default_im = "en-US",
 				get_im_cmd = "echo zh-CN",
 				set_im_cmd = "echo %s",
-				save_im_for_filetypes = { "markdown" },
+				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
@@ -69,12 +70,12 @@ describe("smart-im", function()
 			smart_im.remember_im()
 
 			local status = state.get()
-			assert.equals("zh-CN", status.markdown)
+			assert.equals("zh-CN", status.per_filetype.markdown)
 		end)
 
-		it("respects save_im_for_filetypes filter", function()
+		it("respects remember_filetypes filter", function()
 			require("smart-im").setup({
-				save_im_for_filetypes = { "markdown" },
+				remember_filetypes = { "markdown" },
 				get_im_cmd = "echo zh-CN",
 				set_im_cmd = "echo %s",
 			})
@@ -87,14 +88,14 @@ describe("smart-im", function()
 			smart_im.remember_im()
 
 			local status = state.get()
-			assert.is_nil(status.lua, "Should not remember IM for untracked filetype")
+			assert.is_nil(status.per_filetype.lua, "Should not remember IM for untracked filetype")
 
 			-- Try to remember for markdown (in list)
 			vim.bo.filetype = "markdown"
 			smart_im.remember_im()
 
 			status = state.get()
-			assert.equals("zh-CN", status.markdown, "Should remember IM for tracked filetype")
+			assert.equals("zh-CN", status.per_filetype.markdown, "Should remember IM for tracked filetype")
 		end)
 	end)
 
@@ -106,7 +107,7 @@ describe("smart-im", function()
 			})
 			local config = require("smart-im.config")
 			assert.is_not_nil(config.options)
-			assert.equals("com.apple.keylayout.ABC", config.options.default_im)
+			assert.equals(DEFAULT_IM, config.options.default_im)
 		end)
 
 		it("accepts custom default_im", function()
@@ -119,15 +120,15 @@ describe("smart-im", function()
 			assert.equals("custom.im", config.options.default_im)
 		end)
 
-		it("accepts save_im_for_filetypes", function()
+		it("accepts remember_filetypes", function()
 			require("smart-im").setup({
-				save_im_for_filetypes = { "markdown", "text" },
+				remember_filetypes = { "markdown", "text" },
 				get_im_cmd = "echo test",
 				set_im_cmd = "echo %s",
 			})
 			local config = require("smart-im.config")
-			assert.equals(2, #config.options.save_im_for_filetypes)
-			assert.is_true(vim.tbl_contains(config.options.save_im_for_filetypes, "markdown"))
+			assert.equals(2, #config.options.remember_filetypes)
+			assert.is_true(vim.tbl_contains(config.options.remember_filetypes, "markdown"))
 		end)
 
 		it("accepts boolean options", function()
@@ -162,6 +163,27 @@ describe("smart-im", function()
 			assert.is_not_nil(commands.SmartIMStatus)
 			assert.is_not_nil(commands.SmartIMClear)
 		end)
+
+		it("SmartIMClear clears all state", function()
+			require("smart-im").setup({
+				get_im_cmd = "echo test",
+				set_im_cmd = "echo %s",
+			})
+
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			state.set("markdown", "im1")
+			state.set("lua", "im2")
+			state.global = "im-global"
+			state.current_im = "im-current"
+
+			vim.api.nvim_cmd({ cmd = "SmartIMClear" }, {})
+
+			assert.equals(0, vim.tbl_count(state.per_filetype))
+			assert.is_nil(state.global)
+			assert.is_nil(state.current_im)
+		end)
 	end)
 
 	describe("state management", function()
@@ -171,7 +193,7 @@ describe("smart-im", function()
 			state.set("markdown", "com.apple.inputmethod.SCIM.ITABC")
 			local status = state.get()
 
-			assert.equals("com.apple.inputmethod.SCIM.ITABC", status.markdown)
+			assert.equals("com.apple.inputmethod.SCIM.ITABC", status.per_filetype.markdown)
 		end)
 
 		it("can clear specific filetype", function()
@@ -182,8 +204,8 @@ describe("smart-im", function()
 			state.clear("markdown")
 
 			local status = state.get()
-			assert.is_nil(status.markdown)
-			assert.equals("im2", status.text)
+			assert.is_nil(status.per_filetype.markdown)
+			assert.equals("im2", status.per_filetype.text)
 		end)
 
 		it("can clear all filetypes", function()
@@ -194,7 +216,7 @@ describe("smart-im", function()
 			state.clear()
 
 			local status = state.get()
-			assert.equals(0, vim.tbl_count(status))
+			assert.equals(0, vim.tbl_count(status.per_filetype))
 		end)
 
 		it("returns deep copy of state", function()
@@ -202,10 +224,10 @@ describe("smart-im", function()
 
 			state.set("markdown", "im1")
 			local status1 = state.get()
-			status1.markdown = "modified"
+			status1.per_filetype.markdown = "modified"
 
 			local status2 = state.get()
-			assert.equals("im1", status2.markdown)
+			assert.equals("im1", status2.per_filetype.markdown)
 		end)
 	end)
 
@@ -317,61 +339,78 @@ describe("smart-im", function()
 		end)
 	end)
 
-		describe("config", function()
+	describe("config", function()
 		it("has correct default values", function()
 			local config = require("smart-im.config")
 
-			assert.equals("com.apple.keylayout.ABC", config.defaults.default_im)
+			assert.equals(DEFAULT_IM, config.defaults.default_im)
 			assert.is_true(config.defaults.restore_previous)
 			assert.is_true(config.defaults.switch_on_leave)
-			assert.equals(0, #config.defaults.save_im_for_filetypes)
+			assert.equals(0, #config.defaults.remember_filetypes)
 			assert.is_nil(config.defaults.get_im_cmd)
 			assert.is_nil(config.defaults.set_im_cmd)
 		end)
 
-			it("merges user options with defaults", function()
-				local config = require("smart-im.config")
+		it("merges user options with defaults", function()
+			local config = require("smart-im.config")
 
-				config.setup({
-					default_im = "custom.im",
+			config.setup({
+				default_im = "custom.im",
 				restore_previous = false,
+				switch_on_leave = true,
+				remember_filetypes = {},
+				restore_events = { "InsertEnter" },
+				remember_events = { "InsertLeave", "CmdlineLeave" },
+				debug = false,
 				get_im_cmd = "custom-get",
 				set_im_cmd = "custom-set %s",
 			})
 
 			assert.equals("custom.im", config.options.default_im)
-				assert.is_false(config.options.restore_previous)
-				assert.is_true(config.options.switch_on_leave) -- unchanged default
-				assert.equals("custom-get", config.options.get_im_cmd)
-			end)
-
-			it("does not mutate defaults between setups", function()
-				local config = require("smart-im.config")
-
-				config.setup({
-					default_im = "custom.im",
-					restore_previous = false,
-					get_im_cmd = "custom-get",
-					set_im_cmd = "custom-set %s",
-				})
-
-				assert.equals("custom.im", config.options.default_im)
-				assert.is_false(config.options.restore_previous)
-
-				config.setup({
-					get_im_cmd = "echo test",
-					set_im_cmd = "echo %s",
-				})
-
-				assert.equals("com.apple.keylayout.ABC", config.options.default_im)
-				assert.is_true(config.options.restore_previous)
-			end)
+			assert.is_false(config.options.restore_previous)
+			assert.is_true(config.options.switch_on_leave) -- unchanged default
+			assert.equals("custom-get", config.options.get_im_cmd)
 		end)
+
+		it("does not mutate defaults between setups", function()
+			local config = require("smart-im.config")
+
+			config.setup({
+				default_im = "custom.im",
+				restore_previous = false,
+				switch_on_leave = true,
+				remember_filetypes = {},
+				restore_events = { "InsertEnter" },
+				remember_events = { "InsertLeave", "CmdlineLeave" },
+				debug = false,
+				get_im_cmd = "custom-get",
+				set_im_cmd = "custom-set %s",
+			})
+
+			assert.equals("custom.im", config.options.default_im)
+			assert.is_false(config.options.restore_previous)
+
+			config.setup({
+				default_im = DEFAULT_IM,
+				restore_previous = true,
+				switch_on_leave = true,
+				remember_filetypes = {},
+				restore_events = { "InsertEnter" },
+				remember_events = { "InsertLeave", "CmdlineLeave" },
+				debug = false,
+				get_im_cmd = "echo test",
+				set_im_cmd = "echo %s",
+			})
+
+			assert.equals(DEFAULT_IM, config.options.default_im)
+			assert.is_true(config.options.restore_previous)
+		end)
+	end)
 
 	describe("filetype tracking", function()
 		it("does not track per-filetype when list is empty", function()
 			require("smart-im").setup({
-				save_im_for_filetypes = {},
+				remember_filetypes = {},
 				get_im_cmd = "echo test.im",
 				set_im_cmd = "echo %s",
 			})
@@ -388,7 +427,7 @@ describe("smart-im", function()
 
 		it("tracks only specified filetypes", function()
 			require("smart-im").setup({
-				save_im_for_filetypes = { "markdown" },
+				remember_filetypes = { "markdown" },
 				get_im_cmd = "echo test.im",
 				set_im_cmd = "echo %s",
 			})

@@ -51,7 +51,7 @@ describe("smart-im behavior simulation", function()
 			-- Setup: track only markdown
 			require("smart-im").setup({
 				default_im = "en-US",
-				save_im_for_filetypes = { "markdown" },
+				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
@@ -110,7 +110,7 @@ describe("smart-im behavior simulation", function()
 		it("scenario: must specify filetypes to track", function()
 			require("smart-im").setup({
 				default_im = "en-US",
-				save_im_for_filetypes = { "markdown", "lua", "python" }, -- Track these
+				remember_filetypes = { "markdown", "lua", "python" }, -- Track these
 			})
 
 			local smart_im = require("smart-im")
@@ -170,7 +170,7 @@ describe("smart-im behavior simulation", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 				restore_previous = false,
-				save_im_for_filetypes = { "markdown" },
+				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
@@ -357,10 +357,10 @@ describe("smart-im behavior simulation", function()
 			state.set("markdown", "zh-CN")
 
 			local copy1 = smart_im.get_state()
-			copy1.markdown = "modified"
+			copy1.per_filetype.markdown = "modified"
 
 			local copy2 = smart_im.get_state()
-			assert.equals("zh-CN", copy2.markdown, "Should not affect original")
+			assert.equals("zh-CN", copy2.per_filetype.markdown, "Should not affect original")
 		end)
 	end)
 end)

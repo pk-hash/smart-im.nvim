@@ -52,6 +52,8 @@ EOF
 
 ## Prerequisites
 
+- Neovim 0.9.0 or newer
+
 ### macOS
 Install [im-select](https://github.com/daipeihust/im-select):
 ```bash
@@ -83,22 +85,22 @@ Download [im-select.exe](https://github.com/daipeihust/im-select) and add to PAT
 require("smart-im").setup({
   -- Default input method (fallback)
   default_im = "com.apple.keylayout.ABC", -- macOS example
-  
+
   -- Restore previous IM on InsertEnter
   restore_previous = true,
-  
+
   -- Switch to default IM on InsertLeave
   switch_on_leave = true,
-  
-  -- Filetypes to save IM for (empty = don't track, use default always)
-  save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
-  
+
+  -- Filetypes to remember IM for (empty = don't track, use default always)
+  remember_filetypes = {}, -- e.g., { "markdown", "text" }
+
   -- Events that trigger IM restore
   restore_events = { "InsertEnter" },
-  
+
   -- Events that trigger IM remember and switch to default
   remember_events = { "InsertLeave", "CmdlineLeave" },
-  
+
   -- Custom commands (auto-detected if nil)
   get_im_cmd = nil, -- e.g., "im-select" on macOS
   set_im_cmd = nil, -- e.g., "im-select %s" on macOS
@@ -111,8 +113,8 @@ require("smart-im").setup({
 ```lua
 require("smart-im").setup({
   default_im = "com.apple.keylayout.ABC",
-  -- Only remember IM for markdown and text files
-  save_im_for_filetypes = { "markdown", "text" },
+  -- Track IM per filetype (example: only markdown and text)
+  remember_filetypes = { "markdown", "text" },
 })
 ```
 
@@ -144,7 +146,7 @@ require("smart-im").setup({
 ### Commands
 
 - `:SmartIMStatus` - Show remembered input methods per filetype
-- `:SmartIMClear [filetype]` - Clear memory (all or specific filetype)
+- `:SmartIMClear` - Clear all remembered input methods
 
 ### Lua API
 
@@ -172,8 +174,10 @@ smart_im.clear_memory()
 -- Clear memory for specific filetype
 smart_im.clear_memory("markdown")
 
--- Get all remembered IMs
+-- Get remembered IMs
 local state = smart_im.get_state()
+-- state.per_filetype holds tracked filetypes
+-- state.global holds the global IM for untracked filetypes
 ```
 
 ## How It Works
@@ -184,7 +188,7 @@ local state = smart_im.get_state()
 
 ## Example Workflow
 
-With `save_im_for_filetypes = { "markdown", "text" }`:
+With `remember_filetypes = { "markdown", "text" }`:
 
 1. Edit a Markdown file with Chinese input method
 2. Leave insert mode → switches to English (default)
@@ -192,7 +196,7 @@ With `save_im_for_filetypes = { "markdown", "text" }`:
 4. Return to Markdown file and enter insert mode → automatically switches back to Chinese
 5. Edit another Lua file → still uses English (Lua is not tracked)
 
-With `save_im_for_filetypes = {}` (track none, always use default):
+With `remember_filetypes = {}` (track none, always use default):
 
 1. Edit any file with any input method
 2. The plugin does not remember per-filetype IMs

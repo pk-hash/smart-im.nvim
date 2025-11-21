@@ -40,12 +40,12 @@ end
 function M.commands()
 	local state = require("smart-im.state")
 
-	vim.api.nvim_create_user_command("SmartIMClear", function(args)
-		state.clear(args.args ~= "" and args.args or nil)
+	vim.api.nvim_create_user_command("SmartIMClear", function()
+		state.clear()
 		vim.notify("smart-im.nvim: Memory cleared", vim.log.levels.INFO)
 	end, {
-		nargs = "?",
-		desc = "Clear input method memory (optionally for specific filetype)",
+		nargs = 0,
+		desc = "Clear all remembered input methods",
 	})
 
 	vim.api.nvim_create_user_command("SmartIMStatus", function()
@@ -54,11 +54,9 @@ function M.commands()
 		local has_data = false
 
 		-- Per-filetype
-		for ft, im in pairs(status) do
-			if ft ~= "global" then
-				table.insert(lines, string.format("  %s: %s", ft, im))
-				has_data = true
-			end
+		for ft, im in pairs(status.per_filetype) do
+			table.insert(lines, string.format("  %s: %s", ft, im))
+			has_data = true
 		end
 
 		-- Global

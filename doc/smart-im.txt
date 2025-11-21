@@ -32,7 +32,7 @@ Key features:
 ==============================================================================
 2. REQUIREMENTS                                       *smart-im-requirements*
 
-- Neovim >= 0.7.0
+- Neovim >= 0.9.0
 - One of the following input method tools:
   * macOS: im-select (https://github.com/daipeihust/im-select)
   * Linux: ibus, fcitx-remote, or fcitx5-remote
@@ -67,22 +67,22 @@ Setup the plugin with options: >lua
     require("smart-im").setup({
       -- Default input method (fallback)
       default_im = "com.apple.keylayout.ABC",
-      
+
       -- Restore previous IM on InsertEnter
       restore_previous = true,
-      
+
       -- Switch to default IM on InsertLeave
       switch_on_leave = true,
-      
-      -- Filetypes to save IM for (empty = all filetypes)
-      save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
-      
+
+      -- Filetypes to remember IM for (empty = don't track, always use default)
+      remember_filetypes = {}, -- e.g., { "markdown", "text" }
+
       -- Events that trigger IM restore
       restore_events = { "InsertEnter" },
-      
+
       -- Events that trigger IM remember
       remember_events = { "InsertLeave", "CmdlineLeave" },
-      
+
       -- Custom commands (auto-detected if nil)
       get_im_cmd = nil, -- e.g., "im-select"
       set_im_cmd = nil, -- e.g., "im-select %s"
@@ -105,8 +105,8 @@ Configuration options:
         Whether to switch to default IM when leaving insert mode.
         Default: true
 
-    save_im_for_filetypes   (table)
-        List of filetypes to save IM for. If empty, doesn't track any 
+    remember_filetypes      (table)
+        List of filetypes to save IM for. If empty, doesn't track any
         filetypes and always uses default_im.
         Default: {} (don't track, use default always)
         Example: { "markdown", "text", "org" }
@@ -138,9 +138,8 @@ Configuration options:
     Display all remembered input methods per filetype.
 
                                                             *:SmartIMClear*
-:SmartIMClear [filetype]
-    Clear input method memory. If [filetype] is provided, only clears that
-    filetype's memory. Otherwise, clears all memory.
+:SmartIMClear
+    Clear all remembered input methods.
 
 ==============================================================================
 6. API                                                         *smart-im-api*
@@ -215,7 +214,7 @@ Custom default IM: >lua
 
 Track only specific filetypes: >lua
     require("smart-im").setup({
-      save_im_for_filetypes = { "markdown", "text", "org" },
+      remember_filetypes = { "markdown", "text", "org" },
     })
 <
 
@@ -227,14 +226,14 @@ Disable auto-switch on InsertLeave: >lua
 
 Manual IM management: >lua
     local smart_im = require("smart-im")
-    
+
     -- Set Chinese IM for markdown files
     smart_im.set("markdown", "com.apple.inputmethod.SCIM.ITABC")
-    
+
     -- Get current IM
     local current = smart_im.get_current_im()
     print("Current IM: " .. current)
-    
+
     -- Clear markdown memory
     smart_im.clear_memory("markdown")
 <

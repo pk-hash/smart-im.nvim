@@ -4,6 +4,12 @@ local config = require("smart-im.config")
 
 local M = {}
 
+local function log_debug(msg)
+	if config.options.debug then
+		vim.notify("smart-im: " .. msg, vim.log.levels.DEBUG)
+	end
+end
+
 ---@return string
 local function get_filetype()
 	return vim.bo.filetype or ""
@@ -16,7 +22,7 @@ local function should_track_filetype(ft)
 		return false
 	end
 
-	local save_for = config.options.save_im_for_filetypes
+	local save_for = config.options.remember_filetypes
 
 	-- Shouldn't happen (always set by config), but be defensive
 	if not save_for then
@@ -35,8 +41,8 @@ function M.get_current()
 		return nil
 	end
 
-	local im = utils.execute(cmd)
-	if im and im ~= "" then
+	local im, ok = utils.execute(cmd)
+	if ok and im and im ~= "" then
 		state.current_im = im
 		return im
 	end
@@ -59,10 +65,12 @@ function M.set(im)
 	local set_cmd = string.format(cmd, im)
 	local _, ok = utils.execute(set_cmd)
 	if not ok then
+		log_debug(string.format("failed to set IM to '%s' using command '%s'", im, set_cmd))
 		return false
 	end
 
 	state.current_im = im
+	log_debug(string.format("set IM to '%s'", im))
 	return true
 end
 
@@ -79,9 +87,11 @@ function M.remember(ft)
 	if should_track_filetype(ft) then
 		-- Track per-filetype
 		state.per_filetype[ft] = im
+		log_debug(string.format("remembered IM '%s' for filetype '%s'", im, ft))
 	else
 		-- Track globally for all untracked filetypes
 		state.global = im
+		log_debug(string.format("remembered IM '%s' for global/untracked filetypes", im))
 	end
 end
 
@@ -107,6 +117,7 @@ function M.restore(ft)
 	im = im or config.options.default_im
 
 	if im then
+		log_debug(string.format("restoring IM '%s' for filetype '%s'", im, ft or ""))
 		M.set(im)
 	end
 end

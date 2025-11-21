@@ -12,20 +12,29 @@ M.current_im = nil
 ---Clear stored input method state
 ---@param ft? string Specific filetype to clear, or nil to clear all
 function M.clear(ft)
+	if ft == "global" then
+		M.global = nil
+		M.current_im = nil
+		return
+	end
+
 	if ft then
 		M.per_filetype[ft] = nil
-	else
-		M.per_filetype = {}
-		M.global = nil
+		return
 	end
+
+	M.per_filetype = {}
+	M.global = nil
+	M.current_im = nil
 end
 
 ---Get all stored input method state
----@return table<string, string> state Copy of per-filetype state with global included
+---@return { per_filetype: table<string, string>, global: string? }
 function M.get()
-	local copy = vim.deepcopy(M.per_filetype)
-	copy.global = M.global
-	return copy
+	return {
+		per_filetype = vim.deepcopy(M.per_filetype),
+		global = M.global,
+	}
 end
 
 ---Set input method for specific filetype
