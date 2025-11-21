@@ -273,9 +273,8 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
 			end
-			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
-				return cmd == "im-select" and 1 or 0
+				return cmd == "im-select" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
@@ -294,9 +293,8 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Linux" }
 			end
-			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
-				return cmd == "ibus" and 1 or 0
+				return cmd == "ibus" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
@@ -315,9 +313,8 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Windows_NT" }
 			end
-			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
-				return cmd == "im-select.exe" and 1 or 0
+				return cmd == "im-select.exe" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
