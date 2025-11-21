@@ -236,6 +236,23 @@ require("smart-im").setup({
 
 This plugin is highly inspired by [im-select.nvim](https://github.com/keaising/im-select.nvim) by [@keaising](https://github.com/keaising).
 
+## Development
+
+### Running Tests
+
+```bash
+# Run tests once
+make test
+
+# Watch mode (auto-run on file changes)
+make test-watch
+
+# Clean test environment
+make clean
+```
+
+Tests use [lazy.nvim's minitest](https://github.com/folke/lazy.nvim) framework.
+
 ## License
 
 MIT
