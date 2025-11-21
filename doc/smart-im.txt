@@ -106,9 +106,9 @@ Configuration options:
         Default: true
 
     save_im_for_filetypes   (table)
-        List of filetypes to save IM for. If empty, saves for all filetypes.
-        Filetypes not in this list will always use default_im.
-        Default: {} (all filetypes)
+        List of filetypes to save IM for. If empty, doesn't track any 
+        filetypes and always uses default_im.
+        Default: {} (don't track, use default always)
         Example: { "markdown", "text", "org" }
 
     restore_events          (table)

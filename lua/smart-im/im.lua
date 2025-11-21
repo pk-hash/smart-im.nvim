@@ -14,15 +14,15 @@ local function should_track_filetype(ft)
 	end
 
 	local save_for = config.options.save_im_for_filetypes
-	
+
 	-- Shouldn't happen (always set by config), but be defensive
 	if not save_for then
 		return false
 	end
-	
-	-- Empty list = track all filetypes
+
+	-- Empty list = don't track, always use default
 	if vim.tbl_isempty(save_for) then
-		return true
+		return false
 	end
 
 	-- Check if filetype is in the list

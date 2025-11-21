@@ -90,7 +90,7 @@ require("smart-im").setup({
   -- Switch to default IM on InsertLeave
   switch_on_leave = true,
   
-  -- Filetypes to save IM for (empty = all filetypes)
+  -- Filetypes to save IM for (empty = don't track, use default always)
   save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
   
   -- Events that trigger IM restore

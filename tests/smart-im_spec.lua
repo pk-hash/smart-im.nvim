@@ -65,6 +65,7 @@ describe("smart-im", function()
 				default_im = "en-US",
 				get_im_cmd = "echo zh-CN",
 				set_im_cmd = "echo %s",
+				save_im_for_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")

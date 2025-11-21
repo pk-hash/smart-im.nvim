@@ -107,10 +107,10 @@ describe("smart-im behavior simulation", function()
 	end)
 
 	describe("workflow: track all filetypes", function()
-		it("scenario: empty save_im_for_filetypes tracks everything", function()
+		it("scenario: must specify filetypes to track", function()
 			require("smart-im").setup({
 				default_im = "en-US",
-				save_im_for_filetypes = {}, -- Track ALL
+				save_im_for_filetypes = { "markdown", "lua", "python" }, -- Track these
 			})
 
 			local smart_im = require("smart-im")
@@ -126,13 +126,19 @@ describe("smart-im behavior simulation", function()
 			vim.bo.filetype = "lua"
 			mock_im_state.current = "ja-JP"
 			smart_im.remember_im()
-			assert.equals("ja-JP", state.per_filetype.lua, "Should track lua when list is empty")
+			assert.equals("ja-JP", state.per_filetype.lua, "Should track lua when in list")
 
 			-- Python with Korean
 			vim.bo.filetype = "python"
 			mock_im_state.current = "ko-KR"
 			smart_im.remember_im()
 			assert.equals("ko-KR", state.per_filetype.python)
+
+			-- Rust (not in list) should not be tracked
+			vim.bo.filetype = "rust"
+			mock_im_state.current = "ru-RU"
+			smart_im.remember_im()
+			assert.is_nil(state.per_filetype.rust, "Should not track rust (not in list)")
 
 			-- Restore each one
 			vim.bo.filetype = "markdown"
@@ -146,6 +152,11 @@ describe("smart-im behavior simulation", function()
 			vim.bo.filetype = "python"
 			smart_im.restore_im()
 			assert.equals("ko-KR", mock_im_state.current)
+			
+			-- Rust should use default
+			vim.bo.filetype = "rust"
+			smart_im.restore_im()
+			assert.equals("en-US", mock_im_state.current, "Untracked filetype should use default")
 		end)
 	end)
 
@@ -154,6 +165,7 @@ describe("smart-im behavior simulation", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 				restore_previous = false,
+				save_im_for_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
