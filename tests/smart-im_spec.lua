@@ -1,5 +1,17 @@
 ---@module "luassert"
 
+-- Test helper to mock vim.fn.executable for specific commands
+local function mock_executable(commands)
+	local original = vim.fn.executable
+	vim.fn.executable = function(cmd)
+		if commands[cmd] then
+			return 1
+		end
+		return original(cmd)
+	end
+	return original
+end
+
 describe("smart-im", function()
 	before_each(function()
 		-- Reset module state
@@ -13,20 +25,15 @@ describe("smart-im", function()
 
 	describe("integration", function()
 		it("auto-detects commands and doesn't lose them", function()
-			-- This is the CRITICAL bug test
 			local original_uname = vim.loop.os_uname
-			local original_executable = vim.fn.executable
+			local original_executable = mock_executable({ ["im-select"] = true })
 
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
 			end
-			vim.fn.executable = function(cmd)
-				return cmd == "im-select" and 1 or original_executable(cmd)
-			end
 
 			require("smart-im").setup({
 				default_im = "custom.im",
-				-- User doesn't provide commands, should auto-detect
 			})
 
 			local config = require("smart-im.config")
@@ -268,13 +275,10 @@ describe("smart-im", function()
 		it("detects macOS commands", function()
 			local utils = require("smart-im.utils")
 			local original_uname = vim.loop.os_uname
-			local original_executable = vim.fn.executable
+			local original_executable = mock_executable({ ["im-select"] = true })
 
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
-			end
-			vim.fn.executable = function(cmd)
-				return cmd == "im-select" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
@@ -288,13 +292,10 @@ describe("smart-im", function()
 		it("detects Linux IBus commands", function()
 			local utils = require("smart-im.utils")
 			local original_uname = vim.loop.os_uname
-			local original_executable = vim.fn.executable
+			local original_executable = mock_executable({ ["ibus"] = true })
 
 			vim.loop.os_uname = function()
 				return { sysname = "Linux" }
-			end
-			vim.fn.executable = function(cmd)
-				return cmd == "ibus" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
@@ -308,13 +309,10 @@ describe("smart-im", function()
 		it("detects Windows commands", function()
 			local utils = require("smart-im.utils")
 			local original_uname = vim.loop.os_uname
-			local original_executable = vim.fn.executable
+			local original_executable = mock_executable({ ["im-select.exe"] = true })
 
 			vim.loop.os_uname = function()
 				return { sysname = "Windows_NT" }
-			end
-			vim.fn.executable = function(cmd)
-				return cmd == "im-select.exe" and 1 or original_executable(cmd)
 			end
 
 			local cmds = utils.detect_commands()
