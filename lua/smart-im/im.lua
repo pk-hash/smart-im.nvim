@@ -62,13 +62,17 @@ end
 function M.remember(ft)
 	ft = ft or get_filetype()
 
-	if not should_track_filetype(ft) then
+	local im = M.get_current()
+	if not im then
 		return
 	end
 
-	local im = M.get_current()
-	if im then
+	if should_track_filetype(ft) then
+		-- Track per-filetype
 		state.per_filetype[ft] = im
+	else
+		-- Track globally for all untracked filetypes
+		state.global = im
 	end
 end
 
@@ -81,9 +85,14 @@ function M.restore(ft)
 	local im = nil
 
 	if should_track_filetype(ft) then
+		-- Try to restore per-filetype state
 		im = state.per_filetype[ft]
+	else
+		-- Use global state for untracked filetypes
+		im = state.global
 	end
 
+	-- Fallback to default if no state exists
 	im = im or config.options.default_im
 
 	if im then

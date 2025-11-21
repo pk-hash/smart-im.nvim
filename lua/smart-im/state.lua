@@ -1,6 +1,7 @@
 local M = {}
 
 M.per_filetype = {}
+M.global = nil  -- Global state for untracked filetypes
 M.current_im = nil
 
 function M.clear(ft)
@@ -8,6 +9,7 @@ function M.clear(ft)
 		M.per_filetype[ft] = nil
 	else
 		M.per_filetype = {}
+		M.global = nil
 	end
 end
 
