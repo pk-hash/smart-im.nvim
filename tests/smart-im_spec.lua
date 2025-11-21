@@ -8,8 +8,7 @@ describe("smart-im", function()
 		package.loaded["smart-im.state"] = nil
 		package.loaded["smart-im.im"] = nil
 		package.loaded["smart-im.utils"] = nil
-		package.loaded["smart-im.autocmds"] = nil
-		package.loaded["smart-im.commands"] = nil
+		package.loaded["smart-im.setup"] = nil
 	end)
 
 	describe("integration", function()

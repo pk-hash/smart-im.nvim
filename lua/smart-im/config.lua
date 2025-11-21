@@ -34,8 +34,9 @@ function M.setup(opts)
 		return
 	end
 
-	require("smart-im.autocmds").setup()
-	require("smart-im.commands").setup()
+	local setup = require("smart-im.setup")
+	setup.autocmds()
+	setup.commands()
 end
 
 return M
