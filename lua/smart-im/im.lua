@@ -4,10 +4,13 @@ local config = require("smart-im.config")
 
 local M = {}
 
+---@return string
 local function get_filetype()
 	return vim.bo.filetype or ""
 end
 
+---@param ft string
+---@return boolean
 local function should_track_filetype(ft)
 	if not ft or ft == "" then
 		return false
@@ -24,6 +27,8 @@ local function should_track_filetype(ft)
 	return vim.tbl_contains(save_for, ft)
 end
 
+---Get current input method from system
+---@return string? im Current input method identifier, or nil on failure
 function M.get_current()
 	local cmd = config.options.get_im_cmd
 	if not cmd then
@@ -38,6 +43,9 @@ function M.get_current()
 	return nil
 end
 
+---Set input method
+---@param im string Input method identifier to set
+---@return boolean success True if IM was set successfully
 function M.set(im)
 	if not im or im == "" then
 		return false
@@ -58,6 +66,8 @@ function M.set(im)
 	return true
 end
 
+---Remember current input method for the given filetype
+---@param ft? string Filetype to remember for (defaults to current buffer filetype)
 function M.remember(ft)
 	ft = ft or get_filetype()
 
@@ -75,6 +85,8 @@ function M.remember(ft)
 	end
 end
 
+---Restore input method for the given filetype
+---@param ft? string Filetype to restore for (defaults to current buffer filetype)
 function M.restore(ft)
 	if not config.options.restore_previous then
 		return
@@ -99,6 +111,7 @@ function M.restore(ft)
 	end
 end
 
+---Switch to default input method if configured to do so
 function M.switch_to_default()
 	if config.options.switch_on_leave and config.options.default_im then
 		M.set(config.options.default_im)

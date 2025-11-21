@@ -1,6 +1,39 @@
 local M = {}
 
-local OS_COMMANDS = {
+---Execute shell command and return output
+---@param cmd string Command to execute
+---@return string? result Command output (trimmed), or nil on failure
+---@return boolean success True if command executed successfully
+function M.execute(cmd)
+	local config = require("smart-im.config")
+	local stderr_redirect = config.options.debug and " 2>&1" or " 2>/dev/null"
+	
+	local handle = io.popen(cmd .. stderr_redirect)
+	if not handle then
+		if config.options.debug then
+			vim.notify("smart-im: Failed to execute: " .. cmd, vim.log.levels.ERROR)
+		end
+		return nil, false
+	end
+
+	local result = handle:read("*a")
+	local ok, _, code = handle:close()
+	local success = ok == true or code == 0
+
+	if not success and config.options.debug then
+		vim.notify("smart-im: Command failed: " .. cmd, vim.log.levels.WARN)
+	end
+
+	if result then
+		result = vim.trim(result)
+	end
+
+	return result, success
+end
+
+---Detect appropriate input method commands for current OS
+---@return {get: string, set: string}? commands Table with get/set commands, or nil if not detected
+function M.detect_commands()
 	Darwin = {
 		{ "im-select" },
 		{ "macism" },
@@ -66,30 +99,3 @@ end
 ---@return string? result Command output (trimmed), or nil on failure
 ---@return boolean success True if command executed successfully
 function M.execute(cmd)
-	local config = require("smart-im.config")
-	local stderr_redirect = config.options.debug and " 2>&1" or " 2>/dev/null"
-	
-	local handle = io.popen(cmd .. stderr_redirect)
-	if not handle then
-		if config.options.debug then
-			vim.notify("smart-im: Failed to execute: " .. cmd, vim.log.levels.ERROR)
-		end
-		return nil, false
-	end
-
-	local result = handle:read("*a")
-	local ok, _, code = handle:close()
-	local success = ok == true or code == 0
-
-	if not success and config.options.debug then
-		vim.notify("smart-im: Command failed: " .. cmd, vim.log.levels.WARN)
-	end
-
-	if result then
-		result = vim.trim(result)
-	end
-
-	return result, success
-end
-
-return M
