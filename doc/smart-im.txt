@@ -2,6 +2,7 @@
 
 Author: smart-im.nvim contributors
 License: MIT
+Inspired by: https://github.com/keaising/im-select.nvim
 
 ==============================================================================
 CONTENTS                                                  *smart-im-contents*

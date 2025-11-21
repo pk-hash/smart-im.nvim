@@ -2,6 +2,8 @@
 
 Smart input method switcher for Neovim with per-filetype memory.
 
+> Highly inspired by [im-select.nvim](https://github.com/keaising/im-select.nvim)
+
 ## Features
 
 - 🎯 **Per-filetype Memory**: Automatically remembers the last used input method for each filetype
@@ -181,6 +183,8 @@ local state = smart_im.get_state()
 
 ## Comparison with im-select.nvim
 
+This plugin extends [im-select.nvim](https://github.com/keaising/im-select.nvim) with additional features:
+
 | Feature | smart-im.nvim | im-select.nvim |
 |---------|---------------|----------------|
 | Per-filetype memory | ✅ | ❌ |
@@ -217,6 +221,10 @@ require("smart-im").setup({
   default_im = "your-im-identifier-here",
 })
 ```
+
+## Acknowledgments
+
+This plugin is highly inspired by [im-select.nvim](https://github.com/keaising/im-select.nvim) by [@keaising](https://github.com/keaising).
 
 ## License
 
