@@ -16,12 +16,15 @@ function M.setup(opts)
 
 	local utils = require("smart-im.utils")
 	local os_cmds = utils.detect_commands()
-	if os_cmds then
-		M.options.get_im_cmd = opts.get_im_cmd or os_cmds.get
-		M.options.set_im_cmd = opts.set_im_cmd or os_cmds.set
-	end
 
+	-- First: merge defaults with user options
 	M.options = vim.tbl_deep_extend("force", M.defaults, opts)
+
+	-- Second: apply auto-detected commands only if user didn't provide them
+	if os_cmds then
+		M.options.get_im_cmd = M.options.get_im_cmd or os_cmds.get
+		M.options.set_im_cmd = M.options.set_im_cmd or os_cmds.set
+	end
 
 	if not M.options.get_im_cmd or not M.options.set_im_cmd then
 		vim.notify(

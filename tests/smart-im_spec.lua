@@ -12,6 +12,94 @@ describe("smart-im", function()
 		package.loaded["smart-im.commands"] = nil
 	end)
 
+	describe("integration", function()
+		it("auto-detects commands and doesn't lose them", function()
+			-- This is the CRITICAL bug test
+			local original_uname = vim.loop.os_uname
+			vim.loop.os_uname = function()
+				return { sysname = "Darwin" }
+			end
+
+			require("smart-im").setup({
+				default_im = "custom.im",
+				-- User doesn't provide commands, should auto-detect
+			})
+
+			local config = require("smart-im.config")
+
+			-- BUG: options.get_im_cmd should be "im-select" but is nil
+			-- because tbl_deep_extend overwrites it after detection
+			assert.is_not_nil(config.options.get_im_cmd, "get_im_cmd should not be nil")
+			assert.is_not_nil(config.options.set_im_cmd, "set_im_cmd should not be nil")
+			assert.equals("im-select", config.options.get_im_cmd, "Should have auto-detected get command")
+			assert.equals("im-select %s", config.options.set_im_cmd, "Should have auto-detected set command")
+
+			vim.loop.os_uname = original_uname
+		end)
+
+		it("preserves user-provided commands over auto-detection", function()
+			local original_uname = vim.loop.os_uname
+			vim.loop.os_uname = function()
+				return { sysname = "Darwin" }
+			end
+
+			require("smart-im").setup({
+				get_im_cmd = "custom-get",
+				set_im_cmd = "custom-set %s",
+			})
+
+			local config = require("smart-im.config")
+
+			-- User commands should take priority
+			assert.equals("custom-get", config.options.get_im_cmd)
+			assert.equals("custom-set %s", config.options.set_im_cmd)
+
+			vim.loop.os_uname = original_uname
+		end)
+
+		it("remembers IM when leaving insert mode", function()
+			require("smart-im").setup({
+				default_im = "en-US",
+				get_im_cmd = "echo zh-CN",
+				set_im_cmd = "echo %s",
+			})
+
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			vim.bo.filetype = "markdown"
+			smart_im.remember_im()
+
+			local status = state.get()
+			assert.equals("zh-CN", status.markdown)
+		end)
+
+		it("respects save_im_for_filetypes filter", function()
+			require("smart-im").setup({
+				save_im_for_filetypes = { "markdown" },
+				get_im_cmd = "echo zh-CN",
+				set_im_cmd = "echo %s",
+			})
+
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			-- Try to remember for lua (not in list)
+			vim.bo.filetype = "lua"
+			smart_im.remember_im()
+
+			local status = state.get()
+			assert.is_nil(status.lua, "Should not remember IM for untracked filetype")
+
+			-- Try to remember for markdown (in list)
+			vim.bo.filetype = "markdown"
+			smart_im.remember_im()
+
+			status = state.get()
+			assert.equals("zh-CN", status.markdown, "Should remember IM for tracked filetype")
+		end)
+	end)
+
 	describe("setup", function()
 		it("can be initialized with default config", function()
 			require("smart-im").setup({
