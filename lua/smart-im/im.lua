@@ -20,11 +20,6 @@ local function should_track_filetype(ft)
 		return false
 	end
 
-	-- Empty list = don't track, always use default
-	if vim.tbl_isempty(save_for) then
-		return false
-	end
-
 	-- Check if filetype is in the list
 	return vim.tbl_contains(save_for, ft)
 end

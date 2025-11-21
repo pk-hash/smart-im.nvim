@@ -1,7 +1,7 @@
 local M = {}
 
 M.per_filetype = {}
-M.global = nil  -- Global state for untracked filetypes
+M.global = nil -- Global state for untracked filetypes
 M.current_im = nil
 
 function M.clear(ft)

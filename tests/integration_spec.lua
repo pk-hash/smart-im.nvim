@@ -1,3 +1,4 @@
+---@diagnostic disable: undefined-global
 ---@module "luassert"
 
 describe("smart-im behavior simulation", function()
@@ -152,12 +153,12 @@ describe("smart-im behavior simulation", function()
 			vim.bo.filetype = "python"
 			smart_im.restore_im()
 			assert.equals("ko-KR", mock_im_state.current)
-			
+
 			-- Rust should use global state (ru-RU was remembered)
 			vim.bo.filetype = "rust"
 			smart_im.restore_im()
 			assert.equals("ru-RU", mock_im_state.current, "Untracked filetype should use global state")
-			
+
 			-- Go (also untracked) should also use global state
 			vim.bo.filetype = "go"
 			smart_im.restore_im()
