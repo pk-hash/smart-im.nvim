@@ -21,7 +21,7 @@ describe("smart-im", function()
 				return { sysname = "Darwin" }
 			end
 			vim.fn.executable = function(cmd)
-				return cmd == "im-select" and 1 or 0
+				return cmd == "im-select" and 1 or original_executable(cmd)
 			end
 
 			require("smart-im").setup({
@@ -31,10 +31,10 @@ describe("smart-im", function()
 
 			local config = require("smart-im.config")
 
-			assert.is_not_nil(config.options.get_im_cmd, "get_im_cmd should not be nil")
-			assert.is_not_nil(config.options.set_im_cmd, "set_im_cmd should not be nil")
-			assert.equals("im-select", config.options.get_im_cmd, "Should have auto-detected get command")
-			assert.equals("im-select %s", config.options.set_im_cmd, "Should have auto-detected set command")
+			assert.is_not_nil(config.options.get_im_cmd)
+			assert.is_not_nil(config.options.set_im_cmd)
+			assert.are.equal("im-select", config.options.get_im_cmd)
+			assert.are.equal("im-select %s", config.options.set_im_cmd)
 
 			vim.loop.os_uname = original_uname
 			vim.fn.executable = original_executable
