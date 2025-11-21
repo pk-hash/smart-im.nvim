@@ -1,16 +1,5 @@
 ---@module "luassert"
-
--- Test helper to mock vim.fn.executable for specific commands
-local function mock_executable(commands)
-	local original = vim.fn.executable
-	vim.fn.executable = function(cmd)
-		if commands[cmd] then
-			return 1
-		end
-		return original(cmd)
-	end
-	return original
-end
+local stub = require("luassert.stub")
 
 describe("smart-im", function()
 	before_each(function()
@@ -25,12 +14,13 @@ describe("smart-im", function()
 
 	describe("integration", function()
 		it("auto-detects commands and doesn't lose them", function()
-			local original_uname = vim.loop.os_uname
-			local original_executable = mock_executable({ ["im-select"] = true })
-
-			vim.loop.os_uname = function()
-				return { sysname = "Darwin" }
-			end
+			local os_stub = stub(vim.loop, "os_uname")
+			os_stub.returns({ sysname = "Darwin" })
+			
+			local exec_stub = stub(vim.fn, "executable")
+			exec_stub.invokes(function(cmd)
+				return cmd == "im-select" and 1 or 0
+			end)
 
 			require("smart-im").setup({
 				default_im = "custom.im",
@@ -43,28 +33,25 @@ describe("smart-im", function()
 			assert.are.equal("im-select", config.options.get_im_cmd)
 			assert.are.equal("im-select %s", config.options.set_im_cmd)
 
-			vim.loop.os_uname = original_uname
-			vim.fn.executable = original_executable
+			os_stub:revert()
+			exec_stub:revert()
 		end)
 
 		it("preserves user-provided commands over auto-detection", function()
-			local original_uname = vim.loop.os_uname
-			vim.loop.os_uname = function()
-				return { sysname = "Darwin" }
-			end
+			local os_stub = stub(vim.loop, "os_uname")
+			os_stub.returns({ sysname = "Darwin" })
 
 			require("smart-im").setup({
+				default_im = "en-US",
 				get_im_cmd = "custom-get",
 				set_im_cmd = "custom-set %s",
 			})
 
 			local config = require("smart-im.config")
+			assert.are.equal("custom-get", config.options.get_im_cmd)
+			assert.are.equal("custom-set %s", config.options.set_im_cmd)
 
-			-- User commands should take priority
-			assert.equals("custom-get", config.options.get_im_cmd)
-			assert.equals("custom-set %s", config.options.set_im_cmd)
-
-			vim.loop.os_uname = original_uname
+			os_stub:revert()
 		end)
 
 		it("remembers IM when leaving insert mode", function()
@@ -274,53 +261,59 @@ describe("smart-im", function()
 	describe("utils", function()
 		it("detects macOS commands", function()
 			local utils = require("smart-im.utils")
-			local original_uname = vim.loop.os_uname
-			local original_executable = mock_executable({ ["im-select"] = true })
-
-			vim.loop.os_uname = function()
-				return { sysname = "Darwin" }
-			end
+			
+			local os_stub = stub(vim.loop, "os_uname")
+			os_stub.returns({ sysname = "Darwin" })
+			
+			local exec_stub = stub(vim.fn, "executable")
+			exec_stub.invokes(function(cmd)
+				return cmd == "im-select" and 1 or 0
+			end)
 
 			local cmds = utils.detect_commands()
 			assert.are.equal("im-select", cmds and cmds.get)
 			assert.are.equal("im-select %s", cmds and cmds.set)
 
-			vim.loop.os_uname = original_uname
-			vim.fn.executable = original_executable
+			os_stub:revert()
+			exec_stub:revert()
 		end)
 
 		it("detects Linux IBus commands", function()
 			local utils = require("smart-im.utils")
-			local original_uname = vim.loop.os_uname
-			local original_executable = mock_executable({ ["ibus"] = true })
-
-			vim.loop.os_uname = function()
-				return { sysname = "Linux" }
-			end
+			
+			local os_stub = stub(vim.loop, "os_uname")
+			os_stub.returns({ sysname = "Linux" })
+			
+			local exec_stub = stub(vim.fn, "executable")
+			exec_stub.invokes(function(cmd)
+				return cmd == "ibus" and 1 or 0
+			end)
 
 			local cmds = utils.detect_commands()
 			assert.are.equal("ibus engine", cmds and cmds.get)
 			assert.are.equal("ibus engine %s", cmds and cmds.set)
 
-			vim.loop.os_uname = original_uname
-			vim.fn.executable = original_executable
+			os_stub:revert()
+			exec_stub:revert()
 		end)
 
 		it("detects Windows commands", function()
 			local utils = require("smart-im.utils")
-			local original_uname = vim.loop.os_uname
-			local original_executable = mock_executable({ ["im-select.exe"] = true })
-
-			vim.loop.os_uname = function()
-				return { sysname = "Windows_NT" }
-			end
+			
+			local os_stub = stub(vim.loop, "os_uname")
+			os_stub.returns({ sysname = "Windows_NT" })
+			
+			local exec_stub = stub(vim.fn, "executable")
+			exec_stub.invokes(function(cmd)
+				return cmd == "im-select.exe" and 1 or 0
+			end)
 
 			local cmds = utils.detect_commands()
 			assert.are.equal("im-select.exe", cmds and cmds.get)
 			assert.are.equal("im-select.exe %s", cmds and cmds.set)
 
-			vim.loop.os_uname = original_uname
-			vim.fn.executable = original_executable
+			os_stub:revert()
+			exec_stub:revert()
 		end)
 	end)
 
