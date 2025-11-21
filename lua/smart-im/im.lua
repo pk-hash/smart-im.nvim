@@ -49,7 +49,11 @@ function M.set(im)
 	end
 
 	local set_cmd = string.format(cmd, im)
-	utils.execute(set_cmd)
+	local _, ok = utils.execute(set_cmd)
+	if not ok then
+		return false
+	end
+
 	state.current_im = im
 	return true
 end

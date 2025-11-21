@@ -17,14 +17,14 @@ describe("smart-im behavior simulation", function()
 			execute = function(cmd)
 				if cmd == "mock-get" then
 					table.insert(mock_im_state.history, { action = "get", result = mock_im_state.current })
-					return mock_im_state.current
+					return mock_im_state.current, true
 				elseif cmd:match("^mock%-set ") then
 					local im = cmd:match("^mock%-set (.+)$")
 					table.insert(mock_im_state.history, { action = "set", value = im })
 					mock_im_state.current = im
-					return ""
+					return "", true
 				end
-				return ""
+				return "", false
 			end,
 		}
 	end
@@ -273,9 +273,9 @@ describe("smart-im behavior simulation", function()
 				end,
 				execute = function(cmd)
 					if cmd == "mock-get" then
-						return nil -- Command failed
+						return nil, false -- Command failed
 					end
-					return ""
+					return "", true
 				end,
 			}
 
@@ -288,6 +288,30 @@ describe("smart-im behavior simulation", function()
 			smart_im.remember_im() -- Should not crash
 
 			assert.equals(0, vim.tbl_count(state.per_filetype), "Should not save nil IM")
+		end)
+
+		it("set_im returns false and state unchanged when command fails", function()
+			package.loaded["smart-im.utils"] = {
+				detect_commands = function()
+					return { get = "mock-get", set = "mock-set %s" }
+				end,
+				execute = function(cmd)
+					if cmd == "mock-get" then
+						return "zh-CN", true
+					end
+					return "", false
+				end,
+			}
+
+			require("smart-im").setup({ default_im = "en-US" })
+
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local ok = smart_im.set_im("ja-JP")
+
+			assert.is_false(ok, "set_im should report failure when command fails")
+			assert.is_nil(state.current_im, "State should not update when command fails")
 		end)
 	end)
 

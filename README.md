@@ -192,10 +192,11 @@ With `save_im_for_filetypes = { "markdown", "text" }`:
 4. Return to Markdown file and enter insert mode → automatically switches back to Chinese
 5. Edit another Lua file → still uses English (Lua is not tracked)
 
-With `save_im_for_filetypes = {}` (track all):
+With `save_im_for_filetypes = {}` (track none, always use default):
 
 1. Edit any file with any input method
-2. The plugin remembers IM for every filetype separately
+2. The plugin does not remember per-filetype IMs
+3. Restores to the default input method when returning to insert mode
 
 ## Comparison with im-select.nvim
 

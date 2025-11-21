@@ -16,7 +16,7 @@ describe("smart-im", function()
 		it("auto-detects commands and doesn't lose them", function()
 			local os_stub = stub(vim.loop, "os_uname")
 			os_stub.returns({ sysname = "Darwin" })
-			
+
 			local exec_stub = stub(vim.fn, "executable")
 			exec_stub.invokes(function(cmd)
 				return cmd == "im-select" and 1 or 0
@@ -261,10 +261,10 @@ describe("smart-im", function()
 	describe("utils", function()
 		it("detects macOS commands", function()
 			local utils = require("smart-im.utils")
-			
+
 			local os_stub = stub(vim.loop, "os_uname")
 			os_stub.returns({ sysname = "Darwin" })
-			
+
 			local exec_stub = stub(vim.fn, "executable")
 			exec_stub.invokes(function(cmd)
 				return cmd == "im-select" and 1 or 0
@@ -280,10 +280,10 @@ describe("smart-im", function()
 
 		it("detects Linux IBus commands", function()
 			local utils = require("smart-im.utils")
-			
+
 			local os_stub = stub(vim.loop, "os_uname")
 			os_stub.returns({ sysname = "Linux" })
-			
+
 			local exec_stub = stub(vim.fn, "executable")
 			exec_stub.invokes(function(cmd)
 				return cmd == "ibus" and 1 or 0
@@ -299,10 +299,10 @@ describe("smart-im", function()
 
 		it("detects Windows commands", function()
 			local utils = require("smart-im.utils")
-			
+
 			local os_stub = stub(vim.loop, "os_uname")
 			os_stub.returns({ sysname = "Windows_NT" })
-			
+
 			local exec_stub = stub(vim.fn, "executable")
 			exec_stub.invokes(function(cmd)
 				return cmd == "im-select.exe" and 1 or 0
@@ -317,7 +317,7 @@ describe("smart-im", function()
 		end)
 	end)
 
-	describe("config", function()
+		describe("config", function()
 		it("has correct default values", function()
 			local config = require("smart-im.config")
 
@@ -329,25 +329,47 @@ describe("smart-im", function()
 			assert.is_nil(config.defaults.set_im_cmd)
 		end)
 
-		it("merges user options with defaults", function()
-			local config = require("smart-im.config")
+			it("merges user options with defaults", function()
+				local config = require("smart-im.config")
 
-			config.setup({
-				default_im = "custom.im",
+				config.setup({
+					default_im = "custom.im",
 				restore_previous = false,
 				get_im_cmd = "custom-get",
 				set_im_cmd = "custom-set %s",
 			})
 
 			assert.equals("custom.im", config.options.default_im)
-			assert.is_false(config.options.restore_previous)
-			assert.is_true(config.options.switch_on_leave) -- unchanged default
-			assert.equals("custom-get", config.options.get_im_cmd)
+				assert.is_false(config.options.restore_previous)
+				assert.is_true(config.options.switch_on_leave) -- unchanged default
+				assert.equals("custom-get", config.options.get_im_cmd)
+			end)
+
+			it("does not mutate defaults between setups", function()
+				local config = require("smart-im.config")
+
+				config.setup({
+					default_im = "custom.im",
+					restore_previous = false,
+					get_im_cmd = "custom-get",
+					set_im_cmd = "custom-set %s",
+				})
+
+				assert.equals("custom.im", config.options.default_im)
+				assert.is_false(config.options.restore_previous)
+
+				config.setup({
+					get_im_cmd = "echo test",
+					set_im_cmd = "echo %s",
+				})
+
+				assert.equals("com.apple.keylayout.ABC", config.options.default_im)
+				assert.is_true(config.options.restore_previous)
+			end)
 		end)
-	end)
 
 	describe("filetype tracking", function()
-		it("tracks all filetypes by default", function()
+		it("does not track per-filetype when list is empty", function()
 			require("smart-im").setup({
 				save_im_for_filetypes = {},
 				get_im_cmd = "echo test.im",
@@ -355,12 +377,13 @@ describe("smart-im", function()
 			})
 
 			local smart_im = require("smart-im")
-			smart_im.set("markdown", "im1")
-			smart_im.set("lua", "im2")
+			local state = require("smart-im.state")
 
-			local state = smart_im.get_state()
-			assert.equals("im1", state.markdown)
-			assert.equals("im2", state.lua)
+			vim.bo.filetype = "markdown"
+			smart_im.remember_im()
+
+			assert.is_nil(state.per_filetype.markdown, "Should not remember per-filetype")
+			assert.equals("test.im", state.global, "Should remember globally for untracked filetypes")
 		end)
 
 		it("tracks only specified filetypes", function()
@@ -371,12 +394,18 @@ describe("smart-im", function()
 			})
 
 			local smart_im = require("smart-im")
-			smart_im.set("markdown", "im1")
-			smart_im.set("lua", "im2")
+			local state = require("smart-im.state")
 
-			local state = smart_im.get_state()
-			assert.equals("im1", state.markdown)
-			assert.equals("im2", state.lua) -- set() bypasses tracking filter
+			vim.bo.filetype = "markdown"
+			smart_im.remember_im()
+
+			assert.equals("test.im", state.per_filetype.markdown, "Should track listed filetypes")
+
+			vim.bo.filetype = "lua"
+			smart_im.remember_im()
+
+			assert.is_nil(state.per_filetype.lua, "Should not track unlisted filetypes")
+			assert.equals("test.im", state.global, "Unlisted filetypes should use global state")
 		end)
 	end)
 end)

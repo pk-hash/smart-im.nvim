@@ -11,7 +11,7 @@ M.defaults = {
 	remember_events = { "InsertLeave", "CmdlineLeave" },
 }
 
-M.options = {}
+M.options = vim.deepcopy(M.defaults)
 
 function M.setup(opts)
 	opts = opts or {}
@@ -20,7 +20,7 @@ function M.setup(opts)
 	local os_cmds = utils.detect_commands()
 
 	-- First: merge defaults with user options
-	M.options = vim.tbl_deep_extend("force", M.defaults, opts)
+	M.options = vim.tbl_deep_extend("force", vim.deepcopy(M.defaults), opts)
 
 	-- Second: apply auto-detected commands only if user didn't provide them
 	if os_cmds then

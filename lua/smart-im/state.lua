@@ -14,7 +14,9 @@ function M.clear(ft)
 end
 
 function M.get()
-	return vim.deepcopy(M.per_filetype)
+	local copy = vim.deepcopy(M.per_filetype)
+	copy.global = M.global
+	return copy
 end
 
 function M.set(ft, im)

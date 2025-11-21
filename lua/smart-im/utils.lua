@@ -60,20 +60,22 @@ function M.detect_commands()
 	return nil
 end
 
--- Execute command and return trimmed output
-function M.execute(cmd)
-	local handle = io.popen(cmd .. " 2>/dev/null")
-	if not handle then
-		return nil
-	end
+	-- Execute command and return trimmed output plus success flag
+	function M.execute(cmd)
+		local handle = io.popen(cmd .. " 2>/dev/null")
+		if not handle then
+			return nil, false
+		end
 
-	local result = handle:read("*a")
-	handle:close()
+		local result = handle:read("*a")
+		local ok, _, code = handle:close()
+		local success = ok == true or code == 0
 
-	if result then
-		return vim.trim(result)
+		if result then
+			result = vim.trim(result)
+		end
+
+		return result, success
 	end
-	return nil
-end
 
 return M
