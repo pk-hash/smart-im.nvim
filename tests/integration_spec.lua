@@ -1,4 +1,3 @@
----@diagnostic disable: undefined-global
 ---@module "luassert"
 
 describe("smart-im behavior simulation", function()
