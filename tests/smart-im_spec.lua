@@ -273,13 +273,14 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Darwin" }
 			end
+			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
 				return cmd == "im-select" and 1 or 0
 			end
 
 			local cmds = utils.detect_commands()
-			assert.equals("im-select", cmds.get)
-			assert.equals("im-select %s", cmds.set)
+			assert.are.equal("im-select", cmds and cmds.get)
+			assert.are.equal("im-select %s", cmds and cmds.set)
 
 			vim.loop.os_uname = original_uname
 			vim.fn.executable = original_executable
@@ -293,13 +294,14 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Linux" }
 			end
+			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
 				return cmd == "ibus" and 1 or 0
 			end
 
 			local cmds = utils.detect_commands()
-			assert.equals("ibus engine", cmds.get)
-			assert.equals("ibus engine %s", cmds.set)
+			assert.are.equal("ibus engine", cmds and cmds.get)
+			assert.are.equal("ibus engine %s", cmds and cmds.set)
 
 			vim.loop.os_uname = original_uname
 			vim.fn.executable = original_executable
@@ -313,13 +315,14 @@ describe("smart-im", function()
 			vim.loop.os_uname = function()
 				return { sysname = "Windows_NT" }
 			end
+			---@diagnostic disable-next-line: duplicate-set-field
 			vim.fn.executable = function(cmd)
 				return cmd == "im-select.exe" and 1 or 0
 			end
 
 			local cmds = utils.detect_commands()
-			assert.equals("im-select.exe", cmds.get)
-			assert.equals("im-select.exe %s", cmds.set)
+			assert.are.equal("im-select.exe", cmds and cmds.get)
+			assert.are.equal("im-select.exe %s", cmds and cmds.set)
 
 			vim.loop.os_uname = original_uname
 			vim.fn.executable = original_executable
