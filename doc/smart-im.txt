@@ -74,8 +74,8 @@ Setup the plugin with options: >lua
       -- Switch to default IM on InsertLeave
       switch_on_leave = true,
       
-      -- Remember IM per filetype
-      remember_im_per_ft = true,
+      -- Filetypes to save IM for (empty = all filetypes)
+      save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
       
       -- Custom commands (auto-detected if nil)
       get_im_cmd = nil, -- e.g., "im-select"
@@ -99,9 +99,11 @@ Configuration options:
         Whether to switch to default IM when leaving insert mode.
         Default: true
 
-    remember_im_per_ft      (boolean)
-        Whether to track and remember IM per filetype.
-        Default: true
+    save_im_for_filetypes   (table)
+        List of filetypes to save IM for. If empty, saves for all filetypes.
+        Filetypes not in this list will always use default_im.
+        Default: {} (all filetypes)
+        Example: { "markdown", "text", "org" }
 
     get_im_cmd              (string|nil)
         Command to get current input method. Auto-detected if nil.
@@ -192,6 +194,12 @@ Basic setup: >lua
 Custom default IM: >lua
     require("smart-im").setup({
       default_im = "xkb:us::eng", -- Linux IBus
+    })
+<
+
+Track only specific filetypes: >lua
+    require("smart-im").setup({
+      save_im_for_filetypes = { "markdown", "text", "org" },
     })
 <
 

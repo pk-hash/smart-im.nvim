@@ -90,8 +90,8 @@ require("smart-im").setup({
   -- Switch to default IM on InsertLeave
   switch_on_leave = true,
   
-  -- Remember IM per filetype
-  remember_im_per_ft = true,
+  -- Filetypes to save IM for (empty = all filetypes)
+  save_im_for_filetypes = {}, -- e.g., { "markdown", "text" }
   
   -- Custom commands (auto-detected if nil)
   get_im_cmd = nil, -- e.g., "im-select" on macOS
@@ -105,6 +105,8 @@ require("smart-im").setup({
 ```lua
 require("smart-im").setup({
   default_im = "com.apple.keylayout.ABC",
+  -- Only remember IM for markdown and text files
+  save_im_for_filetypes = { "markdown", "text" },
 })
 ```
 
@@ -176,10 +178,18 @@ local state = smart_im.get_state()
 
 ## Example Workflow
 
+With `save_im_for_filetypes = { "markdown", "text" }`:
+
 1. Edit a Markdown file with Chinese input method
-2. Leave insert mode → switches to English
-3. Open a Lua file → uses English (default)
+2. Leave insert mode → switches to English (default)
+3. Open a Lua file, enter insert mode → uses English (default, not tracked)
 4. Return to Markdown file and enter insert mode → automatically switches back to Chinese
+5. Edit another Lua file → still uses English (Lua is not tracked)
+
+With `save_im_for_filetypes = {}` (track all):
+
+1. Edit any file with any input method
+2. The plugin remembers IM for every filetype separately
 
 ## Comparison with im-select.nvim
 
