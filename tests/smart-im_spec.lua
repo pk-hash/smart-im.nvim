@@ -156,7 +156,7 @@ describe("smart-im.nvim", function()
 			execute_stub:revert()
 		end)
 
-		it("WinLeave on terminal - remembers IM", function()
+		it("WinLeave on terminal in terminal mode - remembers IM", function()
 			local get_stub, execute_stub = setup_with_mocks()
 			local state = require("smart-im.state")
 
@@ -166,11 +166,16 @@ describe("smart-im.nvim", function()
 
 			mock_im_state = "com.apple.keylayout.Russian"
 
+			-- Mock being in terminal mode
+			local mode_stub = stub(vim.api, "nvim_get_mode")
+			mode_stub.returns({ mode = "t" })
+
 			vim.api.nvim_exec_autocmds("WinLeave", { group = "SmartIM" })
 
 			assert.equals("com.apple.keylayout.Russian", state.get().per_buffer[bufnr])
 
 			vim.api.nvim_buf_delete(bufnr, { force = true })
+			mode_stub:revert()
 			get_stub:revert()
 			execute_stub:revert()
 		end)
@@ -291,7 +296,7 @@ describe("smart-im.nvim", function()
 			execute_stub:revert()
 		end)
 
-		it("WinLeave on terminal - remembers IM", function()
+		it("WinLeave on terminal in terminal mode - remembers IM", function()
 			local get_stub, execute_stub = setup_with_mocks()
 			local state = require("smart-im.state")
 
@@ -301,11 +306,16 @@ describe("smart-im.nvim", function()
 
 			mock_im_state = "com.apple.keylayout.Russian"
 
+			-- Mock being in terminal mode
+			local mode_stub = stub(vim.api, "nvim_get_mode")
+			mode_stub.returns({ mode = "t" })
+
 			vim.api.nvim_exec_autocmds("WinLeave", { group = "SmartIM", buffer = bufnr })
 
 			assert.equals("com.apple.keylayout.Russian", state.get().per_buffer[bufnr])
 
 			vim.api.nvim_buf_delete(bufnr, { force = true })
+			mode_stub:revert()
 			get_stub:revert()
 			execute_stub:revert()
 		end)
@@ -420,6 +430,34 @@ describe("smart-im.nvim", function()
 				pattern = "nt:t",
 			})
 			assert.stub(execute_stub).was.called_with(match.matches("echo com%.apple%.keylayout%.Russian"))
+
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+			get_stub:revert()
+			execute_stub:revert()
+		end)
+
+		it("leaving terminal in normal mode preserves saved IM", function()
+			local get_stub, execute_stub = setup_with_mocks()
+			local state = require("smart-im.state")
+
+			-- Create terminal buffer
+			vim.cmd("terminal")
+			local bufnr = vim.api.nvim_get_current_buf()
+
+			-- Terminal has Russian saved
+			mock_im_state = "com.apple.keylayout.Russian"
+			vim.api.nvim_exec_autocmds("ModeChanged", {
+				group = "SmartIM",
+				pattern = "t:nt",
+			})
+			assert.equals("com.apple.keylayout.Russian", state.get().per_buffer[bufnr])
+
+			-- Now in normal mode (IM is default), leave window
+			mock_im_state = DEFAULT_IM
+			vim.api.nvim_exec_autocmds("WinLeave", { group = "SmartIM", buffer = bufnr })
+
+			-- Should still have Russian saved, not default
+			assert.equals("com.apple.keylayout.Russian", state.get().per_buffer[bufnr])
 
 			vim.api.nvim_buf_delete(bufnr, { force = true })
 			get_stub:revert()

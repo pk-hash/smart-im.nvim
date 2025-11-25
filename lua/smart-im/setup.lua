@@ -73,7 +73,12 @@ function M.autocmds()
 			if buftype ~= "terminal" then
 				return
 			end
-			utils.debug_log("WinLeave buftype=" .. buftype .. " buf=" .. args.buf)
+			-- Only remember if we're actually in terminal mode, not terminal-normal
+			local mode = vim.api.nvim_get_mode().mode
+			if mode ~= "t" then
+				return
+			end
+			utils.debug_log("WinLeave buftype=" .. buftype .. " buf=" .. args.buf .. " mode=" .. mode)
 			im.remember(args.buf)
 		end,
 	})
@@ -83,9 +88,6 @@ function M.autocmds()
 		pattern = "t:n",
 		callback = function(args)
 			local buftype = vim.bo[args.buf].buftype
-			if buftype == "prompt" then
-				return
-			end
 			utils.debug_log("ModeChanged t:n buftype=" .. buftype .. " buf=" .. args.buf)
 			im.switch_to_default()
 		end,
@@ -95,6 +97,7 @@ function M.autocmds()
 	vim.api.nvim_create_autocmd("BufDelete", {
 		group = group,
 		callback = function(args)
+			utils.debug_log("BufDelete buf=" .. args.buf)
 			im.cleanup(args.buf)
 		end,
 	})
