@@ -64,11 +64,13 @@ end
 ---@return boolean success True if IM was set successfully
 function M.set(im)
 	if not im or im == "" then
+		log_debug("cannot set empty IM")
 		return false
 	end
 
 	local cmd = config.options.set_im_cmd
-	if not cmd then
+	if not cmd or cmd == "" then
+		log_debug("set_im_cmd not configured")
 		return false
 	end
 

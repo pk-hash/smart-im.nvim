@@ -1,102 +1,52 @@
 local M = {}
 
 function M.autocmds()
-	local im = require("smart-im.im")
-	local utils = require("smart-im.utils")
+	local autocmds = require("smart-im.autocmds")
 	local group = vim.api.nvim_create_augroup("SmartIM", { clear = true })
-	local last_insert_buf = nil
 
 	vim.api.nvim_create_autocmd("InsertEnter", {
 		group = group,
-		callback = function(args)
-			last_insert_buf = args.buf
-		end,
+		callback = autocmds.on_insert_enter,
 	})
 
-	-- Track insert mode transitions (normal buffers and terminals)
 	vim.api.nvim_create_autocmd("ModeChanged", {
 		group = group,
 		pattern = "i:n",
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			utils.debug_log(
-				"ModeChanged i:n buftype="
-					.. buftype
-					.. " buf="
-					.. args.buf
-					.. " last_insert_buf="
-					.. tostring(last_insert_buf)
-			)
-			if last_insert_buf and vim.api.nvim_buf_is_valid(last_insert_buf) and last_insert_buf == args.buf then
-				im.remember(args.buf)
-			end
-			im.switch_to_default()
-		end,
+		callback = autocmds.on_insert_leave,
 	})
 
 	vim.api.nvim_create_autocmd("ModeChanged", {
 		group = group,
 		pattern = "n:i",
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			utils.debug_log("ModeChanged n:i buftype=" .. buftype .. " buf=" .. args.buf)
-			im.restore(args.buf)
-		end,
+		callback = autocmds.on_insert_enter_restore,
 	})
 
-	-- Track terminal mode transitions
 	vim.api.nvim_create_autocmd("ModeChanged", {
 		group = group,
 		pattern = "t:nt",
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			utils.debug_log("ModeChanged t:nt buftype=" .. buftype .. " buf=" .. args.buf)
-			im.remember(args.buf)
-			im.switch_to_default()
-		end,
+		callback = autocmds.on_terminal_leave,
 	})
 
 	vim.api.nvim_create_autocmd("ModeChanged", {
 		group = group,
 		pattern = "nt:t",
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			utils.debug_log("ModeChanged nt:t buftype=" .. buftype .. " buf=" .. args.buf)
-			im.restore(args.buf)
-		end,
+		callback = autocmds.on_terminal_enter,
 	})
 
 	vim.api.nvim_create_autocmd("WinLeave", {
 		group = group,
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			if buftype ~= "terminal" then
-				return
-			end
-			utils.debug_log("WinLeave buftype=" .. buftype .. " buf=" .. args.buf)
-			im.remember(args.buf)
-		end,
+		callback = autocmds.on_win_leave,
 	})
 
 	vim.api.nvim_create_autocmd("ModeChanged", {
 		group = group,
 		pattern = "t:n",
-		callback = function(args)
-			local buftype = vim.bo[args.buf].buftype
-			if buftype == "prompt" then
-				return
-			end
-			utils.debug_log("ModeChanged t:n buftype=" .. buftype .. " buf=" .. args.buf)
-			im.switch_to_default()
-		end,
+		callback = autocmds.on_terminal_to_normal,
 	})
 
-	-- Cleanup buffer data when buffer is deleted
 	vim.api.nvim_create_autocmd("BufDelete", {
 		group = group,
-		callback = function(args)
-			im.cleanup(args.buf)
-		end,
+		callback = autocmds.on_buf_delete,
 	})
 end
 
