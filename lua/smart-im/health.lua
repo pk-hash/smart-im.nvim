@@ -83,19 +83,6 @@ function M.check()
 		check_command(health, "set_im_cmd", options.set_im_cmd)
 	end
 
-	-- Events
-	if options.restore_events and #options.restore_events > 0 then
-		health.ok("restore_events configured")
-	else
-		health.warn("restore_events is empty; input methods will not be restored automatically")
-	end
-
-	if options.remember_events and #options.remember_events > 0 then
-		health.ok("remember_events configured")
-	else
-		health.warn("remember_events is empty; input methods will not be remembered automatically")
-	end
-
 	-- Buffer exclusion
 	health.ok("Floating windows and special buffer types are automatically excluded")
 end

@@ -13,6 +13,178 @@ describe("smart-im", function()
 		package.loaded["smart-im.setup"] = nil
 	end)
 
+	describe("mode transitions", function()
+		it("remembers IM when transitioning from insert to normal", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo zh-CN",
+				set_im_cmd = "echo %s",
+			})
+
+			local im = require("smart-im.im")
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_get_current_buf()
+
+			-- Simulate i:n transition - remember current IM
+			im.remember(bufnr)
+
+			assert.equals("zh-CN", state.per_buffer[bufnr])
+		end)
+
+		it("restores IM when transitioning from normal to insert", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo current-im",
+				set_im_cmd = "echo %s",
+			})
+
+			local im = require("smart-im.im")
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_get_current_buf()
+
+			-- Set up saved IM
+			state.set(bufnr, "zh-CN")
+
+			-- Simulate n:i transition - restore should happen
+			im.restore(bufnr)
+
+			assert.equals("zh-CN", state.per_buffer[bufnr])
+		end)
+
+		it("handles terminal mode transitions", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo terminal-im",
+				set_im_cmd = "echo %s",
+			})
+
+			local im = require("smart-im.im")
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.cmd("set buftype=terminal")
+
+			-- Simulate t:nt transition
+			im.remember(bufnr)
+
+			assert.equals("terminal-im", state.per_buffer[bufnr])
+		end)
+	end)
+
+	describe("default IM handling", function()
+		it("does not store default IM", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo " .. DEFAULT_IM,
+				set_im_cmd = "echo %s",
+			})
+
+			local im = require("smart-im.im")
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_get_current_buf()
+
+			im.remember(bufnr)
+
+			assert.is_nil(state.per_buffer[bufnr])
+		end)
+
+		it("clears buffer state when switching to default IM", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo zh-CN",
+				set_im_cmd = "echo %s",
+			})
+
+			local im = require("smart-im.im")
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_get_current_buf()
+
+			-- First remember non-default IM
+			state.set(bufnr, "zh-CN")
+			assert.equals("zh-CN", state.per_buffer[bufnr])
+
+			-- Now "switch" to default by remembering it
+			package.loaded["smart-im.config"].options.get_im_cmd = "echo " .. DEFAULT_IM
+			im.remember(bufnr)
+
+			assert.is_nil(state.per_buffer[bufnr])
+		end)
+	end)
+
+	describe("buffer cleanup", function()
+		it("cleans up state when buffer is deleted", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo test-im",
+				set_im_cmd = "echo %s",
+			})
+
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_create_buf(false, false)
+
+			state.set(bufnr, "test-im")
+			assert.equals("test-im", state.per_buffer[bufnr])
+
+			-- Trigger BufDelete autocmd
+			vim.api.nvim_buf_delete(bufnr, { force = true })
+
+			-- Give autocmd time to fire
+			vim.wait(100, function() return state.per_buffer[bufnr] == nil end)
+
+			assert.is_nil(state.per_buffer[bufnr])
+		end)
+	end)
+
+	describe("buffer exclusions", function()
+		it("ignores floating windows", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo test-im",
+				set_im_cmd = "echo %s",
+			})
+
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_create_buf(false, true)
+			
+			-- Create floating window
+			local winnr = vim.api.nvim_open_win(bufnr, false, {
+				relative = "editor",
+				width = 10,
+				height = 10,
+				row = 1,
+				col = 1,
+			})
+
+			-- Floating windows should not be tracked
+			local im = require("smart-im.im")
+			im.remember(bufnr)
+			
+			-- Should not save IM for floating window
+			assert.is_nil(state.per_buffer[bufnr])
+			vim.api.nvim_win_close(winnr, true)
+		end)
+
+		it("ignores prompt buffers", function()
+			require("smart-im").setup({
+				default_im = DEFAULT_IM,
+				get_im_cmd = "echo test-im",
+				set_im_cmd = "echo %s",
+			})
+
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.cmd("set buftype=prompt")
+
+			-- Prompt buffers should not be tracked
+			local im = require("smart-im.im")
+			im.remember(bufnr)
+			
+			-- Should not save IM for prompt buffer
+			assert.is_nil(state.per_buffer[bufnr])
+		end)
+	end)
+
 	describe("integration", function()
 		it("auto-detects commands and doesn't lose them", function()
 			local os_stub = stub(vim.loop, "os_uname")
