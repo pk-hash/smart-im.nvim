@@ -1,48 +1,46 @@
 local M = {}
 
----@type table<string, string> Per-filetype input method state
-M.per_filetype = {}
-
----@type string? Global input method state for untracked filetypes
-M.global = nil
+---@type table<integer, string> Per-buffer input method state
+M.per_buffer = {}
 
 ---@type string? Currently active input method
 M.current_im = nil
 
+local function normalize_bufnr(bufnr)
+	if not bufnr or bufnr == 0 then
+		return vim.api.nvim_get_current_buf()
+	end
+	return bufnr
+end
+
 ---Clear stored input method state
----@param ft? string Specific filetype to clear, or nil to clear all
-function M.clear(ft)
-	if ft == "global" then
-		M.global = nil
-		M.current_im = nil
+---@param bufnr? integer Specific buffer to clear, or nil to clear all
+function M.clear(bufnr)
+	if bufnr then
+		local target = normalize_bufnr(bufnr)
+		M.per_buffer[target] = nil
 		return
 	end
 
-	if ft then
-		M.per_filetype[ft] = nil
-		return
-	end
-
-	M.per_filetype = {}
-	M.global = nil
+	M.per_buffer = {}
 	M.current_im = nil
 end
 
 ---Get all stored input method state
----@return { per_filetype: table<string, string>, global: string? }
+---@return { per_buffer: table<integer, string> }
 function M.get()
 	return {
-		per_filetype = vim.deepcopy(M.per_filetype),
-		global = M.global,
+		per_buffer = vim.deepcopy(M.per_buffer),
 	}
 end
 
----Set input method for specific filetype
----@param ft string Filetype to set
+---Set input method for specific buffer
+---@param bufnr integer Buffer number to set
 ---@param im string Input method identifier
-function M.set(ft, im)
-	if ft and im then
-		M.per_filetype[ft] = im
+function M.set(bufnr, im)
+	if bufnr and im then
+		local target = normalize_bufnr(bufnr)
+		M.per_buffer[target] = im
 	end
 end
 

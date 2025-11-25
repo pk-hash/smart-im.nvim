@@ -1,39 +1,43 @@
 local M = {}
 
+local config = require("smart-im.config")
+local im = require("smart-im.im")
+local state = require("smart-im.state")
+
 function M.setup(opts)
-	require("smart-im.config").setup(opts)
+	config.setup(opts)
 end
 
 function M.get_current_im()
-	return require("smart-im.im").get_current()
+	return im.get_current()
 end
 
-function M.set_im(im)
-	return require("smart-im.im").set(im)
+function M.set_im(im_name)
+	return im.set(im_name)
 end
 
-function M.remember_im(ft)
-	require("smart-im.im").remember(ft)
+function M.remember_im(bufnr)
+	im.remember(bufnr)
 end
 
-function M.restore_im(ft)
-	require("smart-im.im").restore(ft)
+function M.restore_im(bufnr)
+	im.restore(bufnr)
 end
 
 function M.switch_to_default()
-	require("smart-im.im").switch_to_default()
+	im.switch_to_default()
 end
 
-function M.clear_memory(ft)
-	require("smart-im.state").clear(ft)
+function M.clear_memory(bufnr)
+	state.clear(bufnr)
 end
 
 function M.get_state()
-	return require("smart-im.state").get()
+	return state.get()
 end
 
-function M.set(ft, im)
-	require("smart-im.state").set(ft, im)
+function M.set(bufnr, im_name)
+	state.set(bufnr, im_name)
 end
 
 return M

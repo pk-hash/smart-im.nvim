@@ -1,5 +1,7 @@
 local M = {}
 
+local config = require("smart-im.config")
+
 local OS_COMMANDS = {
 	Darwin = {
 		{ "im-select" },
@@ -66,7 +68,6 @@ end
 ---@return string? result Command output (trimmed), or nil on failure
 ---@return boolean success True if command executed successfully
 function M.execute(cmd)
-	local config = require("smart-im.config")
 	local stderr_redirect = config.options.debug and " 2>&1" or " 2>/dev/null"
 
 	local handle = io.popen(cmd .. stderr_redirect)
@@ -95,6 +96,14 @@ function M.execute(cmd)
 	end
 
 	return result, success
+end
+
+---Log debug message if debug mode is enabled
+---@param msg string Message to log
+function M.debug_log(msg)
+	if config.options.debug then
+		vim.notify(msg, vim.log.levels.INFO)
+	end
 end
 
 return M

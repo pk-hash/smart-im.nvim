@@ -4,26 +4,16 @@ local M = {}
 local MIN_NVIM = "0.9.0"
 
 ---@class SmartIMConfig
----@field default_im string Default input method identifier
----@field restore_previous boolean Whether to restore previous IM on insert enter
----@field switch_on_leave boolean Whether to switch to default IM on insert leave
----@field remember_filetypes string[] List of filetypes to track separately
+---@field default_im string Default input method identifier (used in normal mode)
 ---@field get_im_cmd? string Command to get current input method
 ---@field set_im_cmd? string Command to set input method (use %s for IM placeholder)
----@field restore_events string[] Events that trigger IM restoration
----@field remember_events string[] Events that trigger IM remembering
 ---@field debug boolean Enable debug logging
 
 ---@type SmartIMConfig
 M.defaults = {
-	default_im = "com.apple.keylayout.ABC",
-	restore_previous = true,
-	switch_on_leave = true,
-	remember_filetypes = {},
+	default_im = "com.apple.keylayout.US",
 	get_im_cmd = nil,
 	set_im_cmd = nil,
-	restore_events = { "InsertEnter" },
-	remember_events = { "InsertLeave", "CmdlineLeave" },
 	debug = false,
 }
 
@@ -46,16 +36,6 @@ function M.setup(opts)
 		opts.default_im = nil
 	end
 
-	if opts.restore_previous ~= nil and type(opts.restore_previous) ~= "boolean" then
-		vim.notify("smart-im: restore_previous must be a boolean", vim.log.levels.ERROR)
-		opts.restore_previous = nil
-	end
-
-	if opts.switch_on_leave ~= nil and type(opts.switch_on_leave) ~= "boolean" then
-		vim.notify("smart-im: switch_on_leave must be a boolean", vim.log.levels.ERROR)
-		opts.switch_on_leave = nil
-	end
-
 	if opts.get_im_cmd ~= nil and type(opts.get_im_cmd) ~= "string" then
 		vim.notify("smart-im: get_im_cmd must be a string", vim.log.levels.ERROR)
 		opts.get_im_cmd = nil
@@ -64,21 +44,6 @@ function M.setup(opts)
 	if opts.set_im_cmd ~= nil and type(opts.set_im_cmd) ~= "string" then
 		vim.notify("smart-im: set_im_cmd must be a string", vim.log.levels.ERROR)
 		opts.set_im_cmd = nil
-	end
-
-	if opts.remember_filetypes ~= nil and type(opts.remember_filetypes) ~= "table" then
-		vim.notify("smart-im: remember_filetypes must be a table", vim.log.levels.ERROR)
-		opts.remember_filetypes = nil
-	end
-
-	if opts.restore_events ~= nil and type(opts.restore_events) ~= "table" then
-		vim.notify("smart-im: restore_events must be a table", vim.log.levels.ERROR)
-		opts.restore_events = nil
-	end
-
-	if opts.remember_events ~= nil and type(opts.remember_events) ~= "table" then
-		vim.notify("smart-im: remember_events must be a table", vim.log.levels.ERROR)
-		opts.remember_events = nil
 	end
 
 	local utils = require("smart-im.utils")

@@ -96,12 +96,8 @@ function M.check()
 		health.warn("remember_events is empty; input methods will not be remembered automatically")
 	end
 
-	-- Filetype tracking
-	if options.remember_filetypes and #options.remember_filetypes > 0 then
-		health.ok(string.format("remember_filetypes configured (%d filetypes)", #options.remember_filetypes))
-	else
-		health.warn("remember_filetypes is empty; per-filetype tracking is disabled (global only)")
-	end
+	-- Buffer exclusion
+	health.ok("Floating windows and special buffer types are automatically excluded")
 end
 
 return M

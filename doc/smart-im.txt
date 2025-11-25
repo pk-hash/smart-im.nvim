@@ -1,4 +1,4 @@
-*smart-im.txt*  Smart input method switcher with per-filetype memory
+*smart-im.txt*  Smart input method switcher with per-buffer memory
 
 Author: smart-im.nvim contributors
 License: MIT
@@ -19,14 +19,14 @@ CONTENTS                                                  *smart-im-contents*
 1. INTRODUCTION                                       *smart-im-introduction*
 
 smart-im.nvim is a lightweight input method switcher for Neovim that
-automatically remembers the last used input method per filetype and restores
+automatically remembers the last used input method per buffer and restores
 it when you enter insert mode.
 
 Key features:
-- Per-filetype input method memory
+- Per-buffer input method memory
+- Mode-aware tracking (insert↔normal, terminal↔normal)
 - Cross-platform support (macOS, Linux, Windows)
-- Automatic IM restoration on InsertEnter
-- Lua API for custom logic
+- Auto memory cleanup on buffer delete
 - Zero dependencies
 
 ==============================================================================
@@ -34,7 +34,9 @@ Key features:
 
 - Neovim >= 0.9.0
 - One of the following input method tools:
-  * macOS: im-select (https://github.com/daipeihust/im-select)
+  * macOS: im-select or macism
+    - im-select: https://github.com/daipeihust/im-select
+    - macism: https://github.com/laishulu/macism
   * Linux: ibus, fcitx-remote, or fcitx5-remote
   * Windows: im-select.exe
 
@@ -65,27 +67,15 @@ Using packer.nvim: >lua
 
 Setup the plugin with options: >lua
     require("smart-im").setup({
-      -- Default input method (fallback)
-      default_im = "com.apple.keylayout.ABC",
+      -- Default input method (used in normal mode)
+      default_im = "com.apple.keylayout.US",
 
-      -- Restore previous IM on InsertEnter
-      restore_previous = true,
-
-      -- Switch to default IM on InsertLeave
-      switch_on_leave = true,
-
-      -- Filetypes to remember IM for (empty = don't track, always use default)
-      remember_filetypes = {}, -- e.g., { "markdown", "text" }
-
-      -- Events that trigger IM restore
-      restore_events = { "InsertEnter" },
-
-      -- Events that trigger IM remember
-      remember_events = { "InsertLeave", "CmdlineLeave" },
+      -- Enable debug logging
+      debug = false,
 
       -- Custom commands (auto-detected if nil)
-      get_im_cmd = nil, -- e.g., "im-select"
-      set_im_cmd = nil, -- e.g., "im-select %s"
+      get_im_cmd = nil, -- e.g., "macism" or "im-select"
+      set_im_cmd = nil, -- e.g., "macism %s"
     })
 <
 
@@ -93,33 +83,12 @@ Setup the plugin with options: >lua
 Configuration options:
 
     default_im              (string)
-        Default input method identifier. This is used as fallback when no
-        previous IM exists for a filetype.
-        Default: "com.apple.keylayout.ABC"
+        Default input method identifier used in normal mode.
+        Default: "com.apple.keylayout.US"
 
-    restore_previous        (boolean)
-        Whether to restore the last used IM when entering insert mode.
-        Default: true
-
-    switch_on_leave         (boolean)
-        Whether to switch to default IM when leaving insert mode.
-        Default: true
-
-    remember_filetypes      (table)
-        List of filetypes to save IM for. If empty, doesn't track any
-        filetypes and always uses default_im.
-        Default: {} (don't track, use default always)
-        Example: { "markdown", "text", "org" }
-
-    restore_events          (table)
-        List of autocmd events that trigger IM restoration.
-        Default: { "InsertEnter" }
-        Example: { "InsertEnter", "CmdlineEnter" }
-
-    remember_events         (table)
-        List of autocmd events that trigger IM remember and switch to default.
-        Default: { "InsertLeave", "CmdlineLeave" }
-        Example: { "InsertLeave" } (only insert mode)
+    debug                   (boolean)
+        Enable debug logging.
+        Default: false
 
     get_im_cmd              (string|nil)
         Command to get current input method. Auto-detected if nil.
@@ -135,7 +104,7 @@ Configuration options:
 
                                                             *:SmartIMStatus*
 :SmartIMStatus
-    Display all remembered input methods per filetype.
+    Display all remembered input methods per buffer.
 
                                                             *:SmartIMClear*
 :SmartIMClear
@@ -166,15 +135,15 @@ set_im({im})
 
                                                      *smart-im.remember_im()*
 remember_im({ft})
-    Remember the current IM for the specified filetype.
+    Remember the current IM for the specified buffer.
     Parameters: ~
-        {ft} (string|nil) Filetype (uses current buffer if nil)
+        {ft} (integer|nil) Buffer number (uses current buffer if nil)
 
                                                       *smart-im.restore_im()*
 restore_im({ft})
-    Restore the remembered IM for the specified filetype.
+    Restore the remembered IM for the specified buffer.
     Parameters: ~
-        {ft} (string|nil) Filetype (uses current buffer if nil)
+        {ft} (integer|nil) Buffer number (uses current buffer if nil)
 
                                                 *smart-im.switch_to_default()*
 switch_to_default()
@@ -184,19 +153,19 @@ switch_to_default()
 clear_memory({ft})
     Clear input method memory.
     Parameters: ~
-        {ft} (string|nil) Filetype to clear (clears all if nil)
+        {ft} (integer|nil) Buffer to clear (clears all if nil)
 
                                                       *smart-im.get_state()*
 get_state()
     Get all remembered input methods.
     Returns: ~
-        (table) Table mapping filetypes to IM identifiers
+        (table) Table mapping buffers to IM identifiers
 
                                                             *smart-im.set()*
 set({ft}, {im})
-    Set IM for a specific filetype.
+    Set IM for a specific buffer.
     Parameters: ~
-        {ft} (string) Filetype
+        {ft} (integer) Buffer number
         {im} (string) Input method identifier
 
 ==============================================================================
@@ -206,43 +175,33 @@ Basic setup: >lua
     require("smart-im").setup()
 <
 
-Custom default IM: >lua
+Linux IBus setup: >lua
     require("smart-im").setup({
-      default_im = "xkb:us::eng", -- Linux IBus
+      default_im = "xkb:us::eng",
     })
 <
 
-Track only specific filetypes: >lua
+macOS with macism: >lua
     require("smart-im").setup({
-      remember_filetypes = { "markdown", "text", "org" },
+      default_im = "com.apple.keylayout.US",
+      get_im_cmd = "macism",
+      set_im_cmd = "macism %s",
     })
 <
 
-Disable auto-switch on InsertLeave: >lua
-    require("smart-im").setup({
-      switch_on_leave = false,
-    })
-<
+Manual IM control: >lua
+    local im = require("smart-im.im")
+    local utils = require("smart-im.utils")
 
-Manual IM management: >lua
-    local smart_im = require("smart-im")
+    -- Remember current IM
+    im.remember()
 
-    -- Set Chinese IM for markdown files
-    smart_im.set("markdown", "com.apple.inputmethod.SCIM.ITABC")
+    -- Restore saved IM
+    im.restore()
 
     -- Get current IM
-    local current = smart_im.get_current_im()
+    local current = utils.get_current_im()
     print("Current IM: " .. current)
-
-    -- Clear markdown memory
-    smart_im.clear_memory("markdown")
-<
-
-Custom commands: >lua
-    require("smart-im").setup({
-      get_im_cmd = "custom-im-get",
-      set_im_cmd = "custom-im-set %s",
-    })
 <
 
 ==============================================================================

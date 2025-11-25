@@ -46,122 +46,82 @@ describe("smart-im behavior simulation", function()
 		package.loaded["smart-im.utils"] = create_mock_utils()
 	end)
 
-	describe("workflow: markdown-only tracking", function()
-		it("scenario: edit markdown, switch to Chinese, switch files, return", function()
-			-- Setup: track only markdown
+	describe("workflow: per-buffer tracking", function()
+		it("remembers per buffer and restores correct IM", function()
 			require("smart-im").setup({
 				default_im = "en-US",
-				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			-- Step 1: Open markdown file, enter insert mode
+			-- Buffer 1 (markdown)
+			local buf1 = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
-			smart_im.restore_im() -- First time, should use default
+			smart_im.restore_im(buf1) -- First time should set default
+			assert.equals("en-US", mock_im_state.current)
 
-			assert.equals("en-US", mock_im_state.current, "Initial restore should set default")
-			assert.equals(1, #mock_im_state.history, "Should have called set once")
-			assert.equals("set", mock_im_state.history[1].action)
-			assert.equals("en-US", mock_im_state.history[1].value)
-
-			-- Step 2: User manually switches to Chinese
 			mock_im_state.current = "zh-CN"
-
-			-- Step 3: Leave insert mode (should remember)
-			smart_im.remember_im()
-
-			assert.equals("zh-CN", state.per_filetype.markdown, "Should remember Chinese for markdown")
-
-			-- Step 4: Switch to default on leave
+			smart_im.remember_im(buf1)
 			smart_im.switch_to_default()
-			assert.equals("en-US", mock_im_state.current, "Should switch back to default")
+			assert.equals("en-US", mock_im_state.current, "Switch back to default after leaving buf1")
 
-			-- Step 5: Switch to lua file
+			-- Buffer 2 (lua)
+			local buf2 = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(buf2)
 			vim.bo.filetype = "lua"
-			smart_im.restore_im()
+			smart_im.restore_im(buf2)
+			assert.equals("en-US", mock_im_state.current, "New buffer starts at default")
 
-			assert.equals("en-US", mock_im_state.current, "Lua should use default (not tracked)")
-			assert.is_nil(state.per_filetype.lua, "Should not have lua in state")
-
-			-- Step 6: User types in Japanese
 			mock_im_state.current = "ja-JP"
+			smart_im.remember_im(buf2)
+			smart_im.switch_to_default()
 
-			-- Step 7: Leave insert mode in lua
-			smart_im.remember_im() -- Should NOT remember (lua not tracked)
+			-- Return to buffer 1 -> should restore Chinese
+			vim.api.nvim_set_current_buf(buf1)
+			mock_im_state.history = {}
+			smart_im.restore_im(buf1)
+			assert.equals("zh-CN", mock_im_state.current)
 
-			assert.is_nil(state.per_filetype.lua, "Should still not remember lua")
+			-- Return to buffer 2 -> should restore Japanese
+			vim.api.nvim_set_current_buf(buf2)
+			mock_im_state.history = {}
+			smart_im.restore_im(buf2)
+			assert.equals("ja-JP", mock_im_state.current)
 
-			-- Step 8: Return to markdown
-			vim.bo.filetype = "markdown"
-			mock_im_state.history = {} -- Clear history to track this restore
-			smart_im.restore_im()
-
-			-- Should restore Chinese!
-			assert.equals("zh-CN", mock_im_state.current, "Should restore Chinese for markdown")
-			assert.equals(1, #mock_im_state.history, "Should have called set")
-			assert.equals("set", mock_im_state.history[1].action)
-			assert.equals("zh-CN", mock_im_state.history[1].value)
+			assert.equals("zh-CN", state.per_buffer[buf1])
+			assert.equals("ja-JP", state.per_buffer[buf2])
 		end)
 	end)
 
-	describe("workflow: track all filetypes", function()
-		it("scenario: must specify filetypes to track", function()
+	describe("workflow: tracking", function()
+		it("tracks all normal buffers", function()
 			require("smart-im").setup({
 				default_im = "en-US",
-				remember_filetypes = { "markdown", "lua", "python" }, -- Track these
 			})
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			-- Markdown with Chinese
+			-- Markdown buffer should be tracked
+			local md_buf = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
 			mock_im_state.current = "zh-CN"
-			smart_im.remember_im()
-			assert.equals("zh-CN", state.per_filetype.markdown)
+			smart_im.remember_im(md_buf)
+			assert.equals("zh-CN", state.per_buffer[md_buf])
 
-			-- Lua with Japanese
+			-- Lua buffer should be tracked
+			local lua_buf = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(lua_buf)
 			vim.bo.filetype = "lua"
-			mock_im_state.current = "ja-JP"
-			smart_im.remember_im()
-			assert.equals("ja-JP", state.per_filetype.lua, "Should track lua when in list")
-
-			-- Python with Korean
-			vim.bo.filetype = "python"
-			mock_im_state.current = "ko-KR"
-			smart_im.remember_im()
-			assert.equals("ko-KR", state.per_filetype.python)
-
-			-- Rust (not in list) should not be tracked
-			vim.bo.filetype = "rust"
 			mock_im_state.current = "ru-RU"
-			smart_im.remember_im()
-			assert.is_nil(state.per_filetype.rust, "Should not track rust (not in list)")
+			smart_im.remember_im(lua_buf)
+			assert.equals("ru-RU", state.per_buffer[lua_buf])
 
-			-- Restore each one
-			vim.bo.filetype = "markdown"
-			smart_im.restore_im()
-			assert.equals("zh-CN", mock_im_state.current)
-
-			vim.bo.filetype = "lua"
-			smart_im.restore_im()
-			assert.equals("ja-JP", mock_im_state.current)
-
-			vim.bo.filetype = "python"
-			smart_im.restore_im()
-			assert.equals("ko-KR", mock_im_state.current)
-
-			-- Rust should use global state (ru-RU was remembered)
-			vim.bo.filetype = "rust"
-			smart_im.restore_im()
-			assert.equals("ru-RU", mock_im_state.current, "Untracked filetype should use global state")
-
-			-- Go (also untracked) should also use global state
-			vim.bo.filetype = "go"
-			smart_im.restore_im()
-			assert.equals("ru-RU", mock_im_state.current, "Another untracked filetype should use same global state")
+			mock_im_state.current = "en-US"
+			mock_im_state.history = {}
+			smart_im.restore_im(lua_buf)
+			assert.equals("ru-RU", mock_im_state.current, "Tracked buffer restores remembered IM")
 		end)
 	end)
 
@@ -170,26 +130,22 @@ describe("smart-im behavior simulation", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 				restore_previous = false,
-				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			-- Remember Chinese for markdown
+			local buf = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
 			mock_im_state.current = "zh-CN"
-			smart_im.remember_im()
-			assert.equals("zh-CN", state.per_filetype.markdown)
+			smart_im.remember_im(buf)
+			assert.equals("zh-CN", state.per_buffer[buf])
 
-			-- Change to Japanese
 			mock_im_state.current = "ja-JP"
-
-			-- Try to restore - should do nothing
 			mock_im_state.history = {}
-			smart_im.restore_im()
+			smart_im.restore_im(buf)
 
-			assert.equals("ja-JP", mock_im_state.current, "Should not restore")
+			assert.equals("ja-JP", mock_im_state.current, "Should not restore when disabled")
 			assert.equals(0, #mock_im_state.history, "Should not call set")
 		end)
 
@@ -212,7 +168,7 @@ describe("smart-im behavior simulation", function()
 	end)
 
 	describe("edge cases", function()
-		it("handles empty filetype", function()
+		it("remembers buffers with filetype", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 			})
@@ -220,12 +176,12 @@ describe("smart-im behavior simulation", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			vim.bo.filetype = ""
+			vim.bo.filetype = "lua"
 			mock_im_state.current = "zh-CN"
 
-			smart_im.remember_im() -- Should not remember
+			smart_im.remember_im() -- Should remember
 
-			assert.equals(0, vim.tbl_count(state.per_filetype), "Should not remember empty filetype")
+			assert.equals(1, vim.tbl_count(state.per_buffer), "Should remember with filetype")
 		end)
 
 		it("handles nil filetype", function()
@@ -246,23 +202,22 @@ describe("smart-im behavior simulation", function()
 			assert.equals("en-US", mock_im_state.current)
 		end)
 
-		it("uses default when no remembered IM exists", function()
+		it("doesn't restore when no remembered IM exists", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 			})
 
 			local smart_im = require("smart-im")
 
+			local buf = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "rust" -- Never seen before
 			mock_im_state.current = "zh-CN" -- Currently something else
 			mock_im_state.history = {}
 
-			smart_im.restore_im() -- Should set default
+			smart_im.restore_im(buf) -- Should not change IM
 
-			assert.equals("en-US", mock_im_state.current)
-			assert.equals(1, #mock_im_state.history)
-			assert.equals("set", mock_im_state.history[1].action)
-			assert.equals("en-US", mock_im_state.history[1].value)
+			assert.equals("zh-CN", mock_im_state.current)
+			assert.equals(0, #mock_im_state.history)
 		end)
 
 		it("get_current_im returns nil doesn't break remember", function()
@@ -287,7 +242,7 @@ describe("smart-im behavior simulation", function()
 			vim.bo.filetype = "markdown"
 			smart_im.remember_im() -- Should not crash
 
-			assert.equals(0, vim.tbl_count(state.per_filetype), "Should not save nil IM")
+			assert.equals(0, vim.tbl_count(state.per_buffer), "Should not save nil IM")
 		end)
 
 		it("set_im returns false and state unchanged when command fails", function()
@@ -316,22 +271,22 @@ describe("smart-im behavior simulation", function()
 	end)
 
 	describe("state operations", function()
-		it("clear_memory removes specific filetype", function()
+		it("clear_memory removes specific buffer", function()
 			require("smart-im").setup({ default_im = "en-US" })
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
 			-- Set up state
-			state.set("markdown", "zh-CN")
-			state.set("lua", "ja-JP")
-			state.set("python", "ko-KR")
+			state.set(1, "zh-CN")
+			state.set(2, "ja-JP")
+			state.set(3, "ko-KR")
 
-			smart_im.clear_memory("lua")
+			smart_im.clear_memory(2)
 
-			assert.equals("zh-CN", state.per_filetype.markdown)
-			assert.is_nil(state.per_filetype.lua)
-			assert.equals("ko-KR", state.per_filetype.python)
+			assert.equals("zh-CN", state.per_buffer[1])
+			assert.is_nil(state.per_buffer[2])
+			assert.equals("ko-KR", state.per_buffer[3])
 		end)
 
 		it("clear_memory with no args removes all", function()
@@ -340,12 +295,12 @@ describe("smart-im behavior simulation", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			state.set("markdown", "zh-CN")
-			state.set("lua", "ja-JP")
+			state.set(1, "zh-CN")
+			state.set(2, "ja-JP")
 
 			smart_im.clear_memory()
 
-			assert.equals(0, vim.tbl_count(state.per_filetype))
+			assert.equals(0, vim.tbl_count(state.per_buffer))
 		end)
 
 		it("get_state returns deep copy", function()
@@ -354,13 +309,13 @@ describe("smart-im behavior simulation", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			state.set("markdown", "zh-CN")
+			state.set(1, "zh-CN")
 
 			local copy1 = smart_im.get_state()
-			copy1.per_filetype.markdown = "modified"
+			copy1.per_buffer[1] = "modified"
 
 			local copy2 = smart_im.get_state()
-			assert.equals("zh-CN", copy2.per_filetype.markdown, "Should not affect original")
+			assert.equals("zh-CN", copy2.per_buffer[1], "Should not affect original")
 		end)
 	end)
 end)

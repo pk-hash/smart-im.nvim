@@ -10,32 +10,42 @@ local function log_debug(msg)
 	end
 end
 
----@return string
-local function get_filetype()
-	return vim.bo.filetype or ""
+---@return integer|nil
+local function get_bufnr(bufnr)
+	if bufnr and bufnr ~= 0 then
+		return bufnr
+	end
+	return vim.api.nvim_get_current_buf()
 end
 
----@param ft string
+---@param bufnr integer
 ---@return boolean
-local function should_track_filetype(ft)
-	if not ft or ft == "" then
-		return false
+local function should_exclude_buffer(bufnr)
+	if not bufnr or bufnr == 0 or not vim.api.nvim_buf_is_valid(bufnr) then
+		return true
 	end
 
-	local save_for = config.options.remember_filetypes
-
-	-- Shouldn't happen (always set by config), but be defensive
-	if not save_for then
-		return false
+	-- Check if buffer is a special buffer type (prompt, etc.) but allow terminal
+	local buftype = vim.api.nvim_get_option_value("buftype", { buf = bufnr })
+	if buftype ~= "" and buftype ~= "terminal" then
+		return true
 	end
 
-	-- Check if filetype is in the list
-	return vim.tbl_contains(save_for, ft)
+	-- Exclude floating windows
+	local wins = vim.fn.win_findbuf(bufnr)
+	for _, win in ipairs(wins) do
+		local win_config = vim.api.nvim_win_get_config(win)
+		if win_config.relative ~= "" then
+			return true
+		end
+	end
+
+	return false
 end
 
 ---Get current input method from system
 ---@return string? im Current input method identifier, or nil on failure
-function M.get_current()
+function M.get_current_im()
 	local cmd = config.options.get_im_cmd
 	if not cmd then
 		return nil
@@ -74,58 +84,75 @@ function M.set(im)
 	return true
 end
 
----Remember current input method for the given filetype
----@param ft? string Filetype to remember for (defaults to current buffer filetype)
-function M.remember(ft)
-	ft = ft or get_filetype()
-
-	local im = M.get_current()
-	if not im then
+---Remember input method for the given buffer
+---@param bufnr? integer Buffer to remember for (defaults to current buffer)
+function M.remember(bufnr)
+	bufnr = get_bufnr(bufnr)
+	if should_exclude_buffer(bufnr) then
+		log_debug(string.format("skipping remember for excluded buffer #%d", bufnr))
 		return
 	end
 
-	if should_track_filetype(ft) then
-		-- Track per-filetype
-		state.per_filetype[ft] = im
-		log_debug(string.format("remembered IM '%s' for filetype '%s'", im, ft))
-	else
-		-- Track globally for all untracked filetypes
-		state.global = im
-		log_debug(string.format("remembered IM '%s' for global/untracked filetypes", im))
+	-- Get current IM from the system
+	local im = M.get_current_im()
+	if not im then
+		log_debug("no IM to remember")
+		return
 	end
+
+	-- Don't store if it's the default IM
+	if im == config.options.default_im then
+		-- Clear any previously stored IM for this buffer
+		if state.per_buffer[bufnr] then
+			state.per_buffer[bufnr] = nil
+			log_debug(string.format("cleared default IM for buffer #%d", bufnr))
+		end
+		return
+	end
+
+	local old_im = state.per_buffer[bufnr]
+	state.per_buffer[bufnr] = im
+	log_debug(string.format("remembered IM '%s' for buffer #%d (was: %s)", im, bufnr, old_im or "nil"))
 end
 
----Restore input method for the given filetype
----@param ft? string Filetype to restore for (defaults to current buffer filetype)
-function M.restore(ft)
+---Restore input method for the given buffer
+---@param bufnr? integer Buffer to restore for (defaults to current buffer)
+---@return string? im The IM that was restored, or nil if nothing was restored
+function M.restore(bufnr)
 	if not config.options.restore_previous then
-		return
+		return nil
 	end
 
-	ft = ft or get_filetype()
+	bufnr = get_bufnr(bufnr)
+
 	local im = nil
-
-	if should_track_filetype(ft) then
-		-- Try to restore per-filetype state
-		im = state.per_filetype[ft]
-	else
-		-- Use global state for untracked filetypes
-		im = state.global
+	if not should_exclude_buffer(bufnr) then
+		im = state.per_buffer[bufnr]
 	end
 
-	-- Fallback to default if no state exists
-	im = im or config.options.default_im
-
+	-- Only restore if we have a saved state for this buffer
 	if im then
-		log_debug(string.format("restoring IM '%s' for filetype '%s'", im, ft or ""))
+		log_debug(string.format("restoring IM '%s' for buffer #%d", im, bufnr or -1))
 		M.set(im)
+		return im
 	end
+
+	return nil
 end
 
 ---Switch to default input method if configured to do so
 function M.switch_to_default()
 	if config.options.switch_on_leave and config.options.default_im then
 		M.set(config.options.default_im)
+	end
+end
+
+---Cleanup buffer data
+---@param bufnr integer Buffer number to cleanup
+function M.cleanup(bufnr)
+	if state.per_buffer[bufnr] then
+		state.per_buffer[bufnr] = nil
+		log_debug(string.format("cleaned up buffer #%d", bufnr))
 	end
 end
 

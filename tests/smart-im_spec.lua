@@ -60,22 +60,21 @@ describe("smart-im", function()
 				default_im = "en-US",
 				get_im_cmd = "echo zh-CN",
 				set_im_cmd = "echo %s",
-				remember_filetypes = { "markdown" },
 			})
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
+			local bufnr = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
-			smart_im.remember_im()
+			smart_im.remember_im(bufnr)
 
 			local status = state.get()
-			assert.equals("zh-CN", status.per_filetype.markdown)
+			assert.equals("zh-CN", status.per_buffer[bufnr])
 		end)
 
-		it("respects remember_filetypes filter", function()
+		it("remembers and restores IM correctly", function()
 			require("smart-im").setup({
-				remember_filetypes = { "markdown" },
 				get_im_cmd = "echo zh-CN",
 				set_im_cmd = "echo %s",
 			})
@@ -83,19 +82,22 @@ describe("smart-im", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			-- Try to remember for lua (not in list)
+			-- Remember for lua buffer
+			local lua_buf = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "lua"
-			smart_im.remember_im()
+			smart_im.remember_im(lua_buf)
 
 			local status = state.get()
-			assert.is_nil(status.per_filetype.lua, "Should not remember IM for untracked filetype")
+			assert.equals("zh-CN", status.per_buffer[lua_buf], "Should remember IM for buffer")
 
-			-- Try to remember for markdown (in list)
+			-- Remember for markdown buffer
+			local md_buf = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(md_buf)
 			vim.bo.filetype = "markdown"
-			smart_im.remember_im()
+			smart_im.remember_im(md_buf)
 
 			status = state.get()
-			assert.equals("zh-CN", status.per_filetype.markdown, "Should remember IM for tracked filetype")
+			assert.equals("zh-CN", status.per_buffer[md_buf], "Should remember IM for buffer")
 		end)
 	end)
 
@@ -118,17 +120,6 @@ describe("smart-im", function()
 			})
 			local config = require("smart-im.config")
 			assert.equals("custom.im", config.options.default_im)
-		end)
-
-		it("accepts remember_filetypes", function()
-			require("smart-im").setup({
-				remember_filetypes = { "markdown", "text" },
-				get_im_cmd = "echo test",
-				set_im_cmd = "echo %s",
-			})
-			local config = require("smart-im.config")
-			assert.equals(2, #config.options.remember_filetypes)
-			assert.is_true(vim.tbl_contains(config.options.remember_filetypes, "markdown"))
 		end)
 
 		it("accepts boolean options", function()
@@ -173,61 +164,59 @@ describe("smart-im", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			state.set("markdown", "im1")
-			state.set("lua", "im2")
-			state.global = "im-global"
+			state.set(1, "im1")
+			state.set(2, "im2")
 			state.current_im = "im-current"
 
 			vim.api.nvim_cmd({ cmd = "SmartIMClear" }, {})
 
-			assert.equals(0, vim.tbl_count(state.per_filetype))
-			assert.is_nil(state.global)
+			assert.equals(0, vim.tbl_count(state.per_buffer))
 			assert.is_nil(state.current_im)
 		end)
 	end)
 
 	describe("state management", function()
-		it("can set and get filetype IM", function()
+		it("can set and get buffer IM", function()
 			local state = require("smart-im.state")
 
-			state.set("markdown", "com.apple.inputmethod.SCIM.ITABC")
+			state.set(1, "com.apple.inputmethod.SCIM.ITABC")
 			local status = state.get()
 
-			assert.equals("com.apple.inputmethod.SCIM.ITABC", status.per_filetype.markdown)
+			assert.equals("com.apple.inputmethod.SCIM.ITABC", status.per_buffer[1])
 		end)
 
-		it("can clear specific filetype", function()
+		it("can clear specific buffer", function()
 			local state = require("smart-im.state")
 
-			state.set("markdown", "im1")
-			state.set("text", "im2")
-			state.clear("markdown")
+			state.set(1, "im1")
+			state.set(2, "im2")
+			state.clear(1)
 
 			local status = state.get()
-			assert.is_nil(status.per_filetype.markdown)
-			assert.equals("im2", status.per_filetype.text)
+			assert.is_nil(status.per_buffer[1])
+			assert.equals("im2", status.per_buffer[2])
 		end)
 
-		it("can clear all filetypes", function()
+		it("can clear all buffers", function()
 			local state = require("smart-im.state")
 
-			state.set("markdown", "im1")
-			state.set("text", "im2")
+			state.set(1, "im1")
+			state.set(2, "im2")
 			state.clear()
 
 			local status = state.get()
-			assert.equals(0, vim.tbl_count(status.per_filetype))
+			assert.equals(0, vim.tbl_count(status.per_buffer))
 		end)
 
 		it("returns deep copy of state", function()
 			local state = require("smart-im.state")
 
-			state.set("markdown", "im1")
+			state.set(1, "im1")
 			local status1 = state.get()
-			status1.per_filetype.markdown = "modified"
+			status1.per_buffer[1] = "modified"
 
 			local status2 = state.get()
-			assert.equals("im1", status2.per_filetype.markdown)
+			assert.equals("im1", status2.per_buffer[1])
 		end)
 	end)
 
@@ -346,7 +335,6 @@ describe("smart-im", function()
 			assert.equals(DEFAULT_IM, config.defaults.default_im)
 			assert.is_true(config.defaults.restore_previous)
 			assert.is_true(config.defaults.switch_on_leave)
-			assert.equals(0, #config.defaults.remember_filetypes)
 			assert.is_nil(config.defaults.get_im_cmd)
 			assert.is_nil(config.defaults.set_im_cmd)
 		end)
@@ -358,7 +346,6 @@ describe("smart-im", function()
 				default_im = "custom.im",
 				restore_previous = false,
 				switch_on_leave = true,
-				remember_filetypes = {},
 				restore_events = { "InsertEnter" },
 				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
@@ -379,7 +366,6 @@ describe("smart-im", function()
 				default_im = "custom.im",
 				restore_previous = false,
 				switch_on_leave = true,
-				remember_filetypes = {},
 				restore_events = { "InsertEnter" },
 				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
@@ -394,7 +380,6 @@ describe("smart-im", function()
 				default_im = DEFAULT_IM,
 				restore_previous = true,
 				switch_on_leave = true,
-				remember_filetypes = {},
 				restore_events = { "InsertEnter" },
 				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
@@ -407,10 +392,9 @@ describe("smart-im", function()
 		end)
 	end)
 
-	describe("filetype tracking", function()
-		it("does not track per-filetype when list is empty", function()
+	describe("buffer tracking", function()
+		it("stores IM per buffer by default", function()
 			require("smart-im").setup({
-				remember_filetypes = {},
 				get_im_cmd = "echo test.im",
 				set_im_cmd = "echo %s",
 			})
@@ -418,16 +402,21 @@ describe("smart-im", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
+			local buf1 = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
-			smart_im.remember_im()
+			smart_im.remember_im(buf1)
 
-			assert.is_nil(state.per_filetype.markdown, "Should not remember per-filetype")
-			assert.equals("test.im", state.global, "Should remember globally for untracked filetypes")
+			local buf2 = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(buf2)
+			vim.bo.filetype = "lua"
+			smart_im.remember_im(buf2)
+
+			assert.equals("test.im", state.per_buffer[buf1], "Should remember IM for first buffer")
+			assert.equals("test.im", state.per_buffer[buf2], "Should remember IM separately per buffer")
 		end)
 
-		it("tracks only specified filetypes", function()
+		it("stores IM per buffer", function()
 			require("smart-im").setup({
-				remember_filetypes = { "markdown" },
 				get_im_cmd = "echo test.im",
 				set_im_cmd = "echo %s",
 			})
@@ -435,16 +424,11 @@ describe("smart-im", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
+			local normal_buf = vim.api.nvim_get_current_buf()
 			vim.bo.filetype = "markdown"
-			smart_im.remember_im()
+			smart_im.remember_im(normal_buf)
 
-			assert.equals("test.im", state.per_filetype.markdown, "Should track listed filetypes")
-
-			vim.bo.filetype = "lua"
-			smart_im.remember_im()
-
-			assert.is_nil(state.per_filetype.lua, "Should not track unlisted filetypes")
-			assert.equals("test.im", state.global, "Unlisted filetypes should use global state")
+			assert.equals("test.im", state.per_buffer[normal_buf], "Should remember normal buffer")
 		end)
 	end)
 end)

@@ -1,17 +1,17 @@
 # smart-im.nvim
 
-Smart input method switcher for Neovim with per-filetype memory.
+Smart input method switcher for Neovim with per-buffer memory.
 
 > Highly inspired by [im-select.nvim](https://github.com/keaising/im-select.nvim)
 
 ## Features
 
-- 🎯 **Per-filetype Memory**: Automatically remembers the last used input method for each filetype
-- 🔄 **Auto-restore**: Restores appropriate input method when entering insert mode
-- 🌍 **Cross-platform**: Works on macOS (input sources), Linux (IBus/Fcitx), and Windows
+- 🎯 **Per-buffer Memory**: Automatically remembers the last used input method for each buffer
+- 🔄 **Mode-aware**: Tracks IM changes on insert↔normal and terminal↔normal transitions
+- 🌍 **Cross-platform**: Works on macOS, Linux (IBus/Fcitx), and Windows
 - ⚡ **Lightweight**: Zero dependencies, pure Lua implementation
-- 🔧 **Customizable**: Extensive configuration options and Lua API
-- 🎮 **Fallback Logic**: Global default when no previous IM exists
+- 🧹 **Memory Efficient**: Auto-cleanup on buffer delete, skips storing default IM
+- 🔧 **Customizable**: Lua API for manual control
 
 ## Installation
 
@@ -55,9 +55,11 @@ EOF
 - Neovim 0.9.0 or newer
 
 ### macOS
-Install [im-select](https://github.com/daipeihust/im-select):
+Install [im-select](https://github.com/daipeihust/im-select) or [macism](https://github.com/laishulu/macism):
 ```bash
 brew install im-select
+# or
+brew install macism
 ```
 
 ### Linux
@@ -83,38 +85,35 @@ Download [im-select.exe](https://github.com/daipeihust/im-select) and add to PAT
 
 ```lua
 require("smart-im").setup({
-  -- Default input method (fallback)
-  default_im = "com.apple.keylayout.ABC", -- macOS example
+  -- Default input method (used in normal mode)
+  default_im = "com.apple.keylayout.US", -- macOS example
 
-  -- Restore previous IM on InsertEnter
-  restore_previous = true,
-
-  -- Switch to default IM on InsertLeave
-  switch_on_leave = true,
-
-  -- Filetypes to remember IM for (empty = don't track, use default always)
-  remember_filetypes = {}, -- e.g., { "markdown", "text" }
-
-  -- Events that trigger IM restore
-  restore_events = { "InsertEnter" },
-
-  -- Events that trigger IM remember and switch to default
-  remember_events = { "InsertLeave", "CmdlineLeave" },
+  -- Enable debug logging
+  debug = false,
 
   -- Custom commands (auto-detected if nil)
-  get_im_cmd = nil, -- e.g., "im-select" on macOS
-  set_im_cmd = nil, -- e.g., "im-select %s" on macOS
+  get_im_cmd = nil, -- e.g., "macism" or "im-select" on macOS
+  set_im_cmd = nil, -- e.g., "macism %s" on macOS
 })
 ```
 
 ### Platform-specific Examples
 
-#### macOS
+#### macOS (with macism)
+```lua
+require("smart-im").setup({
+  default_im = "com.apple.keylayout.US",
+  get_im_cmd = "macism",
+  set_im_cmd = "macism %s",
+})
+```
+
+#### macOS (with im-select)
 ```lua
 require("smart-im").setup({
   default_im = "com.apple.keylayout.ABC",
-  -- Track IM per filetype (example: only markdown and text)
-  remember_filetypes = { "markdown", "text" },
+  get_im_cmd = "im-select",
+  set_im_cmd = "im-select %s",
 })
 ```
 
@@ -145,74 +144,42 @@ require("smart-im").setup({
 
 ### Commands
 
-- `:SmartIMStatus` - Show remembered input methods per filetype
+- `:SmartIMStatus` - Show remembered input methods per buffer
 - `:SmartIMClear` - Clear all remembered input methods
 
 ### Lua API
 
 ```lua
-local smart_im = require("smart-im")
+local im = require("smart-im.im")
 
--- Set IM for specific filetype
-smart_im.set("markdown", "com.apple.inputmethod.SCIM.ITABC")
+-- Manually remember current IM for current buffer
+im.remember()
+
+-- Manually restore IM for current buffer
+im.restore()
 
 -- Get current IM
-local current = smart_im.get_current_im()
-
--- Manually remember current IM
-smart_im.remember_im()
-
--- Manually restore IM for current filetype
-smart_im.restore_im()
-
--- Switch to default IM
-smart_im.switch_to_default()
-
--- Clear all memory
-smart_im.clear_memory()
-
--- Clear memory for specific filetype
-smart_im.clear_memory("markdown")
-
--- Get remembered IMs
-local state = smart_im.get_state()
--- state.per_filetype holds tracked filetypes
--- state.global holds the global IM for untracked filetypes
+local current_im = require("smart-im.utils").get_current_im()
 ```
 
 ## How It Works
 
-1. **InsertLeave**: Remembers the current input method for the buffer's filetype, then switches to default IM
-2. **InsertEnter**: Restores the remembered input method for the current filetype (or uses default)
-3. **BufLeave**: Remembers IM if leaving buffer while in insert mode
+The plugin uses `ModeChanged` autocmd to track mode transitions:
+
+1. **insert → normal** (`i:n`): Captures current IM before macOS auto-switches, saves it for the buffer
+2. **normal → insert** (`n:i`): Restores saved IM for the buffer (or default if none saved)
+3. **terminal → normal** (`t:nt`): Captures current IM for terminal buffer
+4. **normal → terminal** (`nt:t`): Restores saved IM for terminal buffer
+5. **BufDelete**: Cleans up saved IM data to prevent memory leaks
 
 ## Example Workflow
 
-With `remember_filetypes = { "markdown", "text" }`:
-
-1. Edit a Markdown file with Chinese input method
-2. Leave insert mode → switches to English (default)
-3. Open a Lua file, enter insert mode → uses English (default, not tracked)
-4. Return to Markdown file and enter insert mode → automatically switches back to Chinese
-5. Edit another Lua file → still uses English (Lua is not tracked)
-
-With `remember_filetypes = {}` (track none, always use default):
-
-1. Edit any file with any input method
-2. The plugin does not remember per-filetype IMs
-3. Restores to the default input method when returning to insert mode
-
-## Comparison with im-select.nvim
-
-This plugin extends [im-select.nvim](https://github.com/keaising/im-select.nvim) with additional features:
-
-| Feature | smart-im.nvim | im-select.nvim |
-|---------|---------------|----------------|
-| Per-filetype memory | ✅ | ❌ |
-| Auto-detect OS | ✅ | ❌ |
-| Lua API | ✅ | Limited |
-| User commands | ✅ | ❌ |
-| Zero dependencies | ✅ | ✅ |
+1. Open `README.md` in insert mode → uses default English
+2. Switch to Chinese, type some text, return to normal mode → remembers Chinese for this buffer
+3. Open `main.lua` in insert mode → uses default English (different buffer)
+4. Switch to Japanese, return to normal mode → remembers Japanese for this buffer
+5. Return to `README.md` insert mode → automatically switches to Chinese
+6. Open terminal → remembers its own IM separately from text buffers
 
 ## Troubleshooting
 
