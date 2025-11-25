@@ -10,14 +10,6 @@ local function log_debug(msg)
 	end
 end
 
----@return integer|nil
-local function get_bufnr(bufnr)
-	if bufnr and bufnr ~= 0 then
-		return bufnr
-	end
-	return vim.api.nvim_get_current_buf()
-end
-
 ---@param bufnr integer
 ---@return boolean
 local function should_exclude_buffer(bufnr)
@@ -89,7 +81,7 @@ end
 ---Remember input method for the given buffer
 ---@param bufnr? integer Buffer to remember for (defaults to current buffer)
 function M.remember(bufnr)
-	bufnr = get_bufnr(bufnr)
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
 	if should_exclude_buffer(bufnr) then
 		log_debug(string.format("skipping remember for excluded buffer #%d", bufnr))
 		return
@@ -105,7 +97,8 @@ function M.remember(bufnr)
 	-- Don't store if it's the default IM
 	if im == config.options.default_im then
 		-- Clear any previously stored IM for this buffer
-		if state.per_buffer[bufnr] then
+		local old_im = state.per_buffer[bufnr]
+		if old_im then
 			state.per_buffer[bufnr] = nil
 			log_debug(string.format("cleared default IM for buffer #%d", bufnr))
 		end
@@ -121,7 +114,7 @@ end
 ---@param bufnr? integer Buffer to restore for (defaults to current buffer)
 ---@return string? im The IM that was restored, or nil if nothing was restored
 function M.restore(bufnr)
-	bufnr = get_bufnr(bufnr)
+	bufnr = bufnr or vim.api.nvim_get_current_buf()
 
 	local im = nil
 	if not should_exclude_buffer(bufnr) then

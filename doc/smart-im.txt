@@ -24,9 +24,9 @@ it when you enter insert mode.
 
 Key features:
 - Per-buffer input method memory
-- Mode-aware tracking (insert↔normal, terminal↔normal)
 - Cross-platform support (macOS, Linux, Windows)
-- Auto memory cleanup on buffer delete
+- Automatic IM restoration on InsertEnter
+- Lua API for custom logic
 - Zero dependencies
 
 ==============================================================================
@@ -34,9 +34,7 @@ Key features:
 
 - Neovim >= 0.9.0
 - One of the following input method tools:
-  * macOS: im-select or macism
-    - im-select: https://github.com/daipeihust/im-select
-    - macism: https://github.com/laishulu/macism
+  * macOS: im-select (https://github.com/daipeihust/im-select)
   * Linux: ibus, fcitx-remote, or fcitx5-remote
   * Windows: im-select.exe
 
@@ -67,15 +65,30 @@ Using packer.nvim: >lua
 
 Setup the plugin with options: >lua
     require("smart-im").setup({
-      -- Default input method (used in normal mode)
-      default_im = "com.apple.keylayout.US",
+      -- Default input method (fallback)
+      default_im = "com.apple.keylayout.ABC",
 
-      -- Enable debug logging
-      debug = false,
+      -- Restore previous IM for the buffer on InsertEnter
+      restore_previous = true,
+
+      -- Switch to default IM on InsertLeave
+      switch_on_leave = true,
+
+      -- Filetypes to exclude from per-buffer tracking
+      exclude_filetypes = {}, -- e.g., { "TelescopePrompt", "help" }
+
+      -- Optional predicate to exclude buffers from tracking
+      -- exclude = function(bufnr) return false end,
+
+      -- Events that trigger IM restore
+      restore_events = { "InsertEnter" },
+
+      -- Events that trigger IM remember
+      remember_events = { "InsertLeave", "CmdlineLeave" },
 
       -- Custom commands (auto-detected if nil)
-      get_im_cmd = nil, -- e.g., "macism" or "im-select"
-      set_im_cmd = nil, -- e.g., "macism %s"
+      get_im_cmd = nil, -- e.g., "im-select"
+      set_im_cmd = nil, -- e.g., "im-select %s"
     })
 <
 
@@ -83,12 +96,38 @@ Setup the plugin with options: >lua
 Configuration options:
 
     default_im              (string)
-        Default input method identifier used in normal mode.
-        Default: "com.apple.keylayout.US"
+        Default input method identifier. This is used as fallback when no
+        previous IM exists for a buffer.
+        Default: "com.apple.keylayout.ABC"
 
-    debug                   (boolean)
-        Enable debug logging.
-        Default: false
+    restore_previous        (boolean)
+        Whether to restore the last used IM for the buffer when entering
+        insert mode.
+        Default: true
+
+    switch_on_leave         (boolean)
+        Whether to switch to default IM when leaving insert mode.
+        Default: true
+
+    exclude_filetypes       (table)
+        List of filetypes to ignore (no remember/restore).
+        Default: {}
+        Example: { "TelescopePrompt", "help" }
+
+    exclude                 (function|nil)
+        Custom predicate that receives a buffer number and returns true to
+        skip tracking for that buffer.
+        Default: nil
+
+    restore_events          (table)
+        List of autocmd events that trigger IM restoration.
+        Default: { "InsertEnter" }
+        Example: { "InsertEnter", "CmdlineEnter" }
+
+    remember_events         (table)
+        List of autocmd events that trigger IM remember and switch to default.
+        Default: { "InsertLeave", "CmdlineLeave" }
+        Example: { "InsertLeave" } (only insert mode)
 
     get_im_cmd              (string|nil)
         Command to get current input method. Auto-detected if nil.
@@ -175,33 +214,43 @@ Basic setup: >lua
     require("smart-im").setup()
 <
 
-Linux IBus setup: >lua
+Custom default IM: >lua
     require("smart-im").setup({
-      default_im = "xkb:us::eng",
+      default_im = "xkb:us::eng", -- Linux IBus
     })
 <
 
-macOS with macism: >lua
+Track only specific filetypes: >lua
     require("smart-im").setup({
-      default_im = "com.apple.keylayout.US",
-      get_im_cmd = "macism",
-      set_im_cmd = "macism %s",
+      exclude_filetypes = { "TelescopePrompt", "help" },
     })
 <
 
-Manual IM control: >lua
-    local im = require("smart-im.im")
-    local utils = require("smart-im.utils")
+Disable auto-switch on InsertLeave: >lua
+    require("smart-im").setup({
+      switch_on_leave = false,
+    })
+<
 
-    -- Remember current IM
-    im.remember()
+Manual IM management: >lua
+    local smart_im = require("smart-im")
 
-    -- Restore saved IM
-    im.restore()
+    -- Set Chinese IM for current buffer
+    smart_im.set(0, "com.apple.inputmethod.SCIM.ITABC")
 
     -- Get current IM
-    local current = utils.get_current_im()
+    local current = smart_im.get_current_im()
     print("Current IM: " .. current)
+
+    -- Clear markdown memory
+    smart_im.clear_memory("markdown")
+<
+
+Custom commands: >lua
+    require("smart-im").setup({
+      get_im_cmd = "custom-im-get",
+      set_im_cmd = "custom-im-set %s",
+    })
 <
 
 ==============================================================================
