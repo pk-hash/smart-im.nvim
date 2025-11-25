@@ -60,9 +60,11 @@ describe("smart-im", function()
 
 			local im = require("smart-im.im")
 			local state = require("smart-im.state")
+			
+			-- Create a proper terminal buffer
 			local bufnr = vim.api.nvim_create_buf(true, false)
 			vim.api.nvim_set_current_buf(bufnr)
-			vim.cmd("set buftype=terminal")
+			vim.fn.termopen("echo test")
 
 			-- Simulate t:nt transition
 			im.remember(bufnr)
@@ -236,23 +238,31 @@ describe("smart-im", function()
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
+			local im = require("smart-im.im")
 
-			local bufnr = vim.api.nvim_get_current_buf()
-			vim.bo.filetype = "markdown"
+			-- Create a real buffer, not the test buffer
+			local bufnr = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(bufnr)
+			vim.bo[bufnr].filetype = "markdown"
+			
 			smart_im.remember_im(bufnr)
 
 			local status = state.get()
-			assert.equals("zh-CN", status.per_buffer[bufnr])
+			assert.equals("zh-CN", status.per_buffer[bufnr], "Should remember zh-CN for buffer")
 		end)
 
 		it("remembers and restores IM correctly", function()
 			require("smart-im").setup({
-				get_im_cmd = "echo zh-CN",
-				set_im_cmd = "echo %s",
+				default_im = "com.apple.keylayout.US",
 			})
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
+			local utils = require("smart-im.utils")
+
+			-- Stub utils.execute
+			local execute_stub = stub(utils, "execute")
+			execute_stub.returns("zh-CN", true)
 
 			-- Remember for lua buffer
 			local lua_buf = vim.api.nvim_get_current_buf()
@@ -270,6 +280,8 @@ describe("smart-im", function()
 
 			status = state.get()
 			assert.equals("zh-CN", status.per_buffer[md_buf], "Should remember IM for buffer")
+
+			execute_stub:revert()
 		end)
 	end)
 
@@ -560,6 +572,7 @@ describe("smart-im", function()
 
 		it("stores IM per buffer", function()
 			require("smart-im").setup({
+				default_im = "com.apple.keylayout.US",
 				get_im_cmd = "echo test.im",
 				set_im_cmd = "echo %s",
 			})
@@ -567,8 +580,10 @@ describe("smart-im", function()
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
-			local normal_buf = vim.api.nvim_get_current_buf()
-			vim.bo.filetype = "markdown"
+			-- Create a real buffer
+			local normal_buf = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(normal_buf)
+			vim.bo[normal_buf].filetype = "markdown"
 			smart_im.remember_im(normal_buf)
 
 			assert.equals("test.im", state.per_buffer[normal_buf], "Should remember normal buffer")
