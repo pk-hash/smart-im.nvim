@@ -24,6 +24,10 @@ end
 
 ---@param args table
 function M.on_terminal_leave(args)
+	local buftype = vim.bo[args.buf].buftype
+	if buftype == "prompt" then
+		return
+	end
 	local im = require("smart-im.im")
 	im.remember(args.buf)
 	im.switch_to_default()
@@ -33,16 +37,6 @@ end
 function M.on_terminal_enter(args)
 	local im = require("smart-im.im")
 	im.restore(args.buf)
-end
-
----@param args table
-function M.on_terminal_to_normal(args)
-	local buftype = vim.bo[args.buf].buftype
-	if buftype == "prompt" then
-		return
-	end
-	local im = require("smart-im.im")
-	im.switch_to_default()
 end
 
 ---@param args table

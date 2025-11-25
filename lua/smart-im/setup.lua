@@ -38,12 +38,6 @@ function M.autocmds()
 		callback = autocmds.on_win_leave,
 	})
 
-	vim.api.nvim_create_autocmd("ModeChanged", {
-		group = group,
-		pattern = "t:n",
-		callback = autocmds.on_terminal_to_normal,
-	})
-
 	vim.api.nvim_create_autocmd("BufDelete", {
 		group = group,
 		callback = autocmds.on_buf_delete,
