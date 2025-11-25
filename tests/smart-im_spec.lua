@@ -1,6 +1,6 @@
 ---@module "luassert"
 local stub = require("luassert.stub")
-local DEFAULT_IM = "com.apple.keylayout.ABC"
+local DEFAULT_IM = "com.apple.keylayout.US"
 
 describe("smart-im", function()
 	before_each(function()
@@ -120,18 +120,6 @@ describe("smart-im", function()
 			})
 			local config = require("smart-im.config")
 			assert.equals("custom.im", config.options.default_im)
-		end)
-
-		it("accepts boolean options", function()
-			require("smart-im").setup({
-				restore_previous = false,
-				switch_on_leave = false,
-				get_im_cmd = "echo test",
-				set_im_cmd = "echo %s",
-			})
-			local config = require("smart-im.config")
-			assert.is_false(config.options.restore_previous)
-			assert.is_false(config.options.switch_on_leave)
 		end)
 
 		it("registers autocmds on setup", function()
@@ -333,8 +321,6 @@ describe("smart-im", function()
 			local config = require("smart-im.config")
 
 			assert.equals(DEFAULT_IM, config.defaults.default_im)
-			assert.is_true(config.defaults.restore_previous)
-			assert.is_true(config.defaults.switch_on_leave)
 			assert.is_nil(config.defaults.get_im_cmd)
 			assert.is_nil(config.defaults.set_im_cmd)
 		end)
@@ -344,18 +330,13 @@ describe("smart-im", function()
 
 			config.setup({
 				default_im = "custom.im",
-				restore_previous = false,
-				switch_on_leave = true,
-				restore_events = { "InsertEnter" },
-				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
 				get_im_cmd = "custom-get",
 				set_im_cmd = "custom-set %s",
 			})
 
 			assert.equals("custom.im", config.options.default_im)
-			assert.is_false(config.options.restore_previous)
-			assert.is_true(config.options.switch_on_leave) -- unchanged default
+			assert.is_false(config.options.debug)
 			assert.equals("custom-get", config.options.get_im_cmd)
 		end)
 
@@ -364,31 +345,21 @@ describe("smart-im", function()
 
 			config.setup({
 				default_im = "custom.im",
-				restore_previous = false,
-				switch_on_leave = true,
-				restore_events = { "InsertEnter" },
-				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
 				get_im_cmd = "custom-get",
 				set_im_cmd = "custom-set %s",
 			})
 
 			assert.equals("custom.im", config.options.default_im)
-			assert.is_false(config.options.restore_previous)
 
 			config.setup({
 				default_im = DEFAULT_IM,
-				restore_previous = true,
-				switch_on_leave = true,
-				restore_events = { "InsertEnter" },
-				remember_events = { "InsertLeave", "CmdlineLeave" },
 				debug = false,
 				get_im_cmd = "echo test",
 				set_im_cmd = "echo %s",
 			})
 
 			assert.equals(DEFAULT_IM, config.options.default_im)
-			assert.is_true(config.options.restore_previous)
 		end)
 	end)
 

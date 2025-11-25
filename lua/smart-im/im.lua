@@ -119,10 +119,6 @@ end
 ---@param bufnr? integer Buffer to restore for (defaults to current buffer)
 ---@return string? im The IM that was restored, or nil if nothing was restored
 function M.restore(bufnr)
-	if not config.options.restore_previous then
-		return nil
-	end
-
 	bufnr = get_bufnr(bufnr)
 
 	local im = nil
@@ -130,19 +126,20 @@ function M.restore(bufnr)
 		im = state.per_buffer[bufnr]
 	end
 
-	-- Only restore if we have a saved state for this buffer
-	if im then
-		log_debug(string.format("restoring IM '%s' for buffer #%d", im, bufnr or -1))
-		M.set(im)
-		return im
+	-- Restore saved IM or default
+	local target_im = im or config.options.default_im
+	if target_im then
+		log_debug(string.format("restoring IM '%s' for buffer #%d", target_im, bufnr or -1))
+		M.set(target_im)
+		return target_im
 	end
 
 	return nil
 end
 
----Switch to default input method if configured to do so
+---Switch to default input method
 function M.switch_to_default()
-	if config.options.switch_on_leave and config.options.default_im then
+	if config.options.default_im then
 		M.set(config.options.default_im)
 	end
 end

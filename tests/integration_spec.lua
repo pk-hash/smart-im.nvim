@@ -63,8 +63,7 @@ describe("smart-im behavior simulation", function()
 
 			mock_im_state.current = "zh-CN"
 			smart_im.remember_im(buf1)
-			smart_im.switch_to_default()
-			assert.equals("en-US", mock_im_state.current, "Switch back to default after leaving buf1")
+			assert.equals("zh-CN", state.per_buffer[buf1])
 
 			-- Buffer 2 (lua)
 			local buf2 = vim.api.nvim_create_buf(true, false)
@@ -75,7 +74,7 @@ describe("smart-im behavior simulation", function()
 
 			mock_im_state.current = "ja-JP"
 			smart_im.remember_im(buf2)
-			smart_im.switch_to_default()
+			assert.equals("ja-JP", state.per_buffer[buf2])
 
 			-- Return to buffer 1 -> should restore Chinese
 			vim.api.nvim_set_current_buf(buf1)
@@ -88,9 +87,6 @@ describe("smart-im behavior simulation", function()
 			mock_im_state.history = {}
 			smart_im.restore_im(buf2)
 			assert.equals("ja-JP", mock_im_state.current)
-
-			assert.equals("zh-CN", state.per_buffer[buf1])
-			assert.equals("ja-JP", state.per_buffer[buf2])
 		end)
 	end)
 
@@ -125,45 +121,107 @@ describe("smart-im behavior simulation", function()
 		end)
 	end)
 
-	describe("workflow: config options", function()
-		it("restore_previous = false doesn't restore", function()
-			require("smart-im").setup({
-				default_im = "en-US",
-				restore_previous = false,
-			})
-
+	describe("workflow: mode transitions", function()
+		it("n:i transition restores saved IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
 
 			local buf = vim.api.nvim_get_current_buf()
-			vim.bo.filetype = "markdown"
-			mock_im_state.current = "zh-CN"
-			smart_im.remember_im(buf)
-			assert.equals("zh-CN", state.per_buffer[buf])
+			state.set(buf, "zh-CN")
 
-			mock_im_state.current = "ja-JP"
-			mock_im_state.history = {}
+			mock_im_state.current = "en-US"
 			smart_im.restore_im(buf)
-
-			assert.equals("ja-JP", mock_im_state.current, "Should not restore when disabled")
-			assert.equals(0, #mock_im_state.history, "Should not call set")
+			assert.equals("zh-CN", mock_im_state.current)
 		end)
 
-		it("switch_on_leave = false doesn't switch", function()
-			require("smart-im").setup({
-				default_im = "en-US",
-				switch_on_leave = false,
-			})
-
+		it("n:i transition restores default when no saved IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
 			local smart_im = require("smart-im")
 
+			local buf = vim.api.nvim_get_current_buf()
+			mock_im_state.current = "ko-KR"
+			smart_im.restore_im(buf)
+			assert.equals("en-US", mock_im_state.current)
+		end)
+
+		it("i:n transition remembers current IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local buf = vim.api.nvim_get_current_buf()
+			mock_im_state.current = "ja-JP"
+			smart_im.remember_im(buf)
+			assert.equals("ja-JP", state.per_buffer[buf])
+		end)
+
+		it("i:n transition doesn't save default IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local buf = vim.api.nvim_get_current_buf()
+			-- Set non-default first
+			state.set(buf, "zh-CN")
+			assert.equals("zh-CN", state.per_buffer[buf])
+
+			-- Now remember default - should clear
+			mock_im_state.current = "en-US"
+			smart_im.remember_im(buf)
+			assert.is_nil(state.per_buffer[buf])
+		end)
+
+		it("n:t transition restores terminal IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local buf = vim.api.nvim_get_current_buf()
+			state.set(buf, "ko-KR")
+
+			mock_im_state.current = "en-US"
+			smart_im.restore_im(buf)
+			assert.equals("ko-KR", mock_im_state.current)
+		end)
+
+		it("t:n transition remembers terminal IM", function()
+			require("smart-im").setup({ default_im = "en-US" })
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local buf = vim.api.nvim_get_current_buf()
+			mock_im_state.current = "ru-RU"
+			smart_im.remember_im(buf)
+			assert.equals("ru-RU", state.per_buffer[buf])
+		end)
+
+		it("multiple buffers maintain separate IM state", function()
+			require("smart-im").setup({ default_im = "en-US" })
+			local smart_im = require("smart-im")
+			local state = require("smart-im.state")
+
+			local buf1 = vim.api.nvim_get_current_buf()
+			local buf2 = vim.api.nvim_create_buf(true, false)
+
+			-- Set different IMs for each buffer
 			mock_im_state.current = "zh-CN"
-			mock_im_state.history = {}
+			smart_im.remember_im(buf1)
 
-			smart_im.switch_to_default()
+			mock_im_state.current = "ja-JP"
+			smart_im.remember_im(buf2)
 
-			assert.equals("zh-CN", mock_im_state.current, "Should not switch")
-			assert.equals(0, #mock_im_state.history, "Should not call set")
+			assert.equals("zh-CN", state.per_buffer[buf1])
+			assert.equals("ja-JP", state.per_buffer[buf2])
+
+			-- Restore each buffer independently
+			mock_im_state.current = "en-US"
+			smart_im.restore_im(buf1)
+			assert.equals("zh-CN", mock_im_state.current)
+
+			mock_im_state.current = "en-US"
+			smart_im.restore_im(buf2)
+			assert.equals("ja-JP", mock_im_state.current)
 		end)
 	end)
 
@@ -202,7 +260,7 @@ describe("smart-im behavior simulation", function()
 			assert.equals("en-US", mock_im_state.current)
 		end)
 
-		it("doesn't restore when no remembered IM exists", function()
+		it("restores default when no remembered IM exists", function()
 			require("smart-im").setup({
 				default_im = "en-US",
 			})
@@ -214,10 +272,9 @@ describe("smart-im behavior simulation", function()
 			mock_im_state.current = "zh-CN" -- Currently something else
 			mock_im_state.history = {}
 
-			smart_im.restore_im(buf) -- Should not change IM
+			smart_im.restore_im(buf) -- Should set to default
 
-			assert.equals("zh-CN", mock_im_state.current)
-			assert.equals(0, #mock_im_state.history)
+			assert.equals("en-US", mock_im_state.current)
 		end)
 
 		it("get_current_im returns nil doesn't break remember", function()
@@ -238,9 +295,10 @@ describe("smart-im behavior simulation", function()
 
 			local smart_im = require("smart-im")
 			local state = require("smart-im.state")
+			local buf = vim.api.nvim_get_current_buf()
 
 			vim.bo.filetype = "markdown"
-			smart_im.remember_im() -- Should not crash
+			smart_im.remember_im(buf) -- Should not crash
 
 			assert.equals(0, vim.tbl_count(state.per_buffer), "Should not save nil IM")
 		end)
