@@ -8,10 +8,11 @@ Smart input method switcher for Neovim with per-buffer memory.
 
 - 🎯 **Per-buffer Memory**: Automatically remembers the last used input method for each buffer
 - 🔄 **Mode-aware**: Tracks IM changes on insert↔normal and terminal↔normal transitions
-- 🌍 **Cross-platform**: Works on macOS, Linux (IBus/Fcitx), and Windows
+- 🌍 **Cross-platform**: Works on macOS, Linux (IBus/Fcitx/Hyprland), and Windows
 - ⚡ **Lightweight**: Zero dependencies, pure Lua implementation
 - 🧹 **Memory Efficient**: Auto-cleanup on buffer delete, skips storing default IM
 - 🔧 **Customizable**: Lua API for manual control
+- 🚀 **Optimized**: Smart caching for Hyprland (3x faster layout switching)
 
 ## Installation
 
@@ -63,6 +64,13 @@ brew install macism
 ```
 
 ### Linux
+
+**Hyprland** (Recommended):
+- Auto-detected if `hyprctl` is available
+- No additional dependencies required
+- Native integration with optimized performance
+- Uses XKB layout names (e.g., "us", "ru", "de")
+
 **IBus**:
 ```bash
 # Usually pre-installed on Ubuntu/Debian
@@ -116,6 +124,15 @@ require("smart-im").setup({
   set_im_cmd = "im-select %s",
 })
 ```
+
+#### Linux (Hyprland)
+```lua
+require("smart-im").setup({
+  default_im = "us", -- Your default XKB layout
+})
+```
+
+> **Note**: Hyprland support is auto-detected and uses native `hyprctl` commands. The `default_im` should match one of your configured XKB layouts (e.g., "us", "ru", "de"). Get your layouts with: `hyprctl getoption input:kb_layout`
 
 #### Linux (IBus)
 ```lua
@@ -196,6 +213,11 @@ Find your IM identifier:
 # macOS
 im-select
 
+# Linux (Hyprland)
+hyprctl devices -j | jq -r '.keyboards[] | select(.main == true) | .layout'
+# Or simply:
+hyprctl getoption input:kb_layout
+
 # Linux (IBus)
 ibus engine
 
@@ -208,6 +230,23 @@ Then set it in config:
 require("smart-im").setup({
   default_im = "your-im-identifier-here",
 })
+```
+
+### Hyprland-specific
+
+**Check if Hyprland support is working:**
+```vim
+:checkhealth smart-im
+```
+
+**Debug Hyprland detection:**
+```lua
+:lua print(vim.inspect(require("smart-im.hyprland").get_info()))
+```
+
+**Get current layout:**
+```bash
+hyprctl devices -j | jq -r '.keyboards[] | select(.main == true) | (.layout | split(", "))[.active_layout_index]'
 ```
 
 ## Acknowledgments

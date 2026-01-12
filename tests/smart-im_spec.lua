@@ -479,4 +479,113 @@ describe("smart-im.nvim", function()
 			assert.is_nil(state.get().per_buffer[2])
 		end)
 	end)
+
+	describe("Hyprland backend", function()
+		local function setup_hyprland_mocks()
+			-- Mock hyprctl responses
+			local mock_layouts = "us, ru, de"
+			local mock_keyboard = "at-translated-set-2-keyboard"
+			local mock_active_layout_index = 0
+
+			require("smart-im").setup({
+				default_im = "us",
+				get_im_cmd = "hyprland",
+				set_im_cmd = "hyprland",
+			})
+
+			-- Mock the hyprland module
+			package.loaded["smart-im.hyprland"] = {
+				get_current_layout = function()
+					local layouts = {}
+					for layout in mock_layouts:gmatch("[^,]+") do
+						table.insert(layouts, vim.trim(layout))
+					end
+					return layouts[mock_active_layout_index + 1]
+				end,
+				switch_layout = function(target)
+					local layouts = {}
+					for layout in mock_layouts:gmatch("[^,]+") do
+						table.insert(layouts, vim.trim(layout))
+					end
+					for i, layout in ipairs(layouts) do
+						if layout == target then
+							mock_active_layout_index = i - 1
+							return true
+						end
+					end
+					return false
+				end,
+			}
+
+			return function(layout)
+				-- Helper to set layout by name
+				local layouts = {}
+				for l in mock_layouts:gmatch("[^,]+") do
+					table.insert(layouts, vim.trim(l))
+				end
+				for i, l in ipairs(layouts) do
+					if l == layout then
+						mock_active_layout_index = i - 1
+						return
+					end
+				end
+			end, function()
+				-- Helper to get current layout
+				local layouts = {}
+				for l in mock_layouts:gmatch("[^,]+") do
+					table.insert(layouts, vim.trim(l))
+				end
+				return layouts[mock_active_layout_index + 1]
+			end
+		end
+
+		it("gets current layout", function()
+			local set_layout, get_layout = setup_hyprland_mocks()
+			local im = require("smart-im.im")
+
+			set_layout("ru")
+			local current = im.get_current_im()
+
+			assert.equals("ru", current)
+		end)
+
+		it("switches layout via Hyprland module", function()
+			local set_layout, get_layout = setup_hyprland_mocks()
+			local im = require("smart-im.im")
+
+			set_layout("us")
+			local success = im.set("ru")
+
+			assert.is_true(success)
+			assert.equals("ru", get_layout())
+		end)
+
+		it("full workflow with Hyprland", function()
+			local set_layout, get_layout = setup_hyprland_mocks()
+			local state = require("smart-im.state")
+			local bufnr = vim.api.nvim_create_buf(true, false)
+			vim.api.nvim_set_current_buf(bufnr)
+
+			-- Start with Russian layout
+			set_layout("ru")
+			vim.api.nvim_exec_autocmds("InsertEnter", { group = "SmartIM" })
+
+			-- Leave insert mode (should remember Russian and switch to default)
+			vim.api.nvim_exec_autocmds("ModeChanged", {
+				group = "SmartIM",
+				pattern = "i:n",
+			})
+
+			assert.equals("ru", state.get().per_buffer[bufnr])
+			assert.equals("us", get_layout())
+
+			-- Enter insert mode again (should restore Russian)
+			vim.api.nvim_exec_autocmds("ModeChanged", {
+				group = "SmartIM",
+				pattern = "n:i",
+			})
+
+			assert.equals("ru", get_layout())
+		end)
+	end)
 end)

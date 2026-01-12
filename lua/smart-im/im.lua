@@ -43,6 +43,19 @@ function M.get_current_im()
 		return nil
 	end
 
+	-- Special handling for Hyprland
+	if cmd == "hyprland" then
+		local ok, hyprland = pcall(require, "smart-im.hyprland")
+		if ok then
+			local im = hyprland.get_current_layout()
+			if im and im ~= "" then
+				state.current_im = im
+				return im
+			end
+		end
+		return nil
+	end
+
 	local im, ok = utils.execute(cmd)
 	if ok and im and im ~= "" then
 		state.current_im = im
@@ -63,6 +76,21 @@ function M.set(im)
 	local cmd = config.options.set_im_cmd
 	if not cmd or cmd == "" then
 		log_debug("set_im_cmd not configured")
+		return false
+	end
+
+	-- Special handling for Hyprland
+	if cmd == "hyprland" then
+		local ok, hyprland = pcall(require, "smart-im.hyprland")
+		if ok then
+			local success = hyprland.switch_layout(im)
+			if success then
+				state.current_im = im
+				log_debug(string.format("set IM to '%s'", im))
+				return true
+			end
+		end
+		log_debug(string.format("failed to set IM to '%s' using Hyprland", im))
 		return false
 	end
 

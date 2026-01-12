@@ -8,6 +8,7 @@ local OS_COMMANDS = {
 		{ "macism" },
 	},
 	Linux = {
+		{ "hyprctl", args = { get = "hyprland", set = "hyprland" } },
 		{ "ibus", args = { get = "engine", set = "engine %s" } },
 		{ "fcitx-remote", args = { get = "-n", set = "-s %s" } },
 		{ "fcitx5-remote", args = { get = "-n", set = "-s %s" } },
@@ -45,10 +46,10 @@ function M.detect_commands()
 		if vim.fn.executable(cmd) == 1 then
 			local args = entry.args
 			if args then
-				-- Linux-style with different get/set syntax
+				-- Return command args directly (special values like "hyprland" will be handled in im.lua)
 				return {
-					get = cmd .. " " .. args.get,
-					set = cmd .. " " .. args.set,
+					get = args.get,
+					set = args.set,
 				}
 			else
 				-- Simple style (macOS/Windows): command accepts argument directly
